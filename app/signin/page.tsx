@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,13 @@ import { setAuthUser } from "@/lib/dummy-auth";
 
 export default function SignInPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const redirectPath = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("next");
+  }, []);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -25,7 +29,7 @@ export default function SignInPage() {
       email: safeEmail,
     });
 
-    const nextPath = searchParams.get("next") || "/products";
+    const nextPath = redirectPath || "/products";
     router.push(nextPath);
   };
 
