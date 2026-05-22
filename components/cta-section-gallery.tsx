@@ -118,10 +118,10 @@ const GalleryGridCell = React.forwardRef<
 GalleryGridCell.displayName = "GalleryGridCell"
 
 const IMAGES = [
-  "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?q=80&w=2340&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1551024709-8f23befc6f87?q=80&w=2357&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1582106245687-cbb466a9f07f?q=80&w=2350&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?q=80&w=2340&auto=format&fit=crop",
+  "/cta1.jpg",
+  "/cta2.jpg",
+  "/cta3.jpg",
+  "/cta4.webp",
 ]
 
 export function CtaSectionWithGallery() {

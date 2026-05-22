@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Search, Filter, Beer, Martini, GlassWater, ShoppingCart, Lock } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -80,7 +79,6 @@ function parseProductsJson(items: RawProduct[]): Product[] {
 }
 
 export default function ProductsPage() {
-  const searchParams = useSearchParams();
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -143,14 +141,15 @@ export default function ProductsPage() {
   }, [products]);
 
   useEffect(() => {
-    const fromUrlRaw = searchParams.get("category");
+    if (typeof window === "undefined") return;
+    const fromUrlRaw = new URLSearchParams(window.location.search).get("category");
     if (!fromUrlRaw) return;
     const fromUrl = CATEGORY_ALIAS[fromUrlRaw.toLowerCase()] || fromUrlRaw.toLowerCase();
     const exists = categories.some((category) => category.id === fromUrl);
     if (exists) {
       setActiveCategory(fromUrl);
     }
-  }, [categories, searchParams]);
+  }, [categories]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {

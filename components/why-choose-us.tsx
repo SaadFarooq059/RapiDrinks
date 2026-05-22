@@ -31,14 +31,6 @@ const SERVICES = [
     image:
       "/whyus1.jpg",
   },
-  {
-    id: "04",
-    title: "Reliable Stock Availability",
-    description:
-      "Consistent stock levels across top-selling beverages with frequent replenishment. We help you avoid shortages and keep your service running smoothly.",
-    image:
-      "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?q=80&w=1200",
-  },
 ];
 
 const AUTO_PLAY_DURATION = 5000;
