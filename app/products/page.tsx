@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Filter, Beer, Martini, GlassWater, ShoppingCart, Lock } from "lucide-react";
+import {
+  Search,
+  Filter,
+  Beer,
+  Martini,
+  GlassWater,
+  ShoppingCart,
+  Lock,
+} from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -38,6 +46,8 @@ type RawProduct = {
   "Crates Per Pallet": number;
   Status: string;
 };
+
+const PRODUCTS_PER_PAGE = 12;
 
 const CATEGORY_ALIAS: Record<string, string> = {
   wines: "soft-drinks",
@@ -88,6 +98,7 @@ export default function ProductsPage() {
   const [canViewPrices, setCanViewPrices] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [lastAddedProductId, setLastAddedProductId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const syncAuthAndCart = () => {
@@ -181,6 +192,33 @@ export default function ProductsPage() {
     });
   }, [activeCategory, products, searchQuery]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE));
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
+    return filteredProducts.slice(start, start + PRODUCTS_PER_PAGE);
+  }, [currentPage, filteredProducts]);
+
+  const visiblePages = useMemo(() => {
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, currentPage + 2);
+    const pages: number[] = [];
+    for (let page = start; page <= end; page += 1) {
+      pages.push(page);
+    }
+    return pages;
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory, searchQuery]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const handleAddToCart = (product: Product) => {
     addToCart({
       id: product.id,
@@ -199,28 +237,30 @@ export default function ProductsPage() {
       <Header />
 
       {/* Hero */}
-      <section className="bg-gradient-to-b from-muted to-background pt-24 pb-16">
+      <section className="bg-gradient-to-b from-background via-muted/30 to-background py-12 sm:pb-16 lg:pb-20 xl:pb-24">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h1 className="font-serif text-4xl font-bold text-foreground sm:text-5xl">
-              Our Product Catalog
-            </h1>
-            <p className="mt-4 text-muted-foreground">
-              Browse our extensive beverage collection with live category filters.
-              Sign in to unlock wholesale prices.
-            </p>
-          </div>
+          <div className="relative">
+            <div className="lg:w-2/3">
+              <p className="text-xs font-normal uppercase tracking-widest text-muted-foreground sm:text-sm">
+                Wholesale Catalog for Bars, Hotels and Retailers
+              </p>
+              <h1 className="mt-6 font-serif text-4xl font-medium text-foreground sm:mt-10 sm:text-5xl lg:text-6xl xl:text-8xl">
+                <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  Unlimited Beverage
+                </span>{" "}
+                Selection
+              </h1>
+              <p className="mt-4 max-w-xl text-base font-normal text-muted-foreground sm:mt-8 sm:text-xl">
+                Explore our fast-moving product catalog, add items to cart, and place your order
+                with dummy checkout. Sign in to unlock prices and complete orders.
+              </p>
+            </div>
 
-          {/* Search */}
-          <div className="mt-8 mx-auto max-w-xl">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search products, regions, or brands..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-12 bg-card"
+            <div className="mt-8 md:absolute md:right-0 md:top-32 md:mt-0 lg:top-0">
+              <img
+                className="mx-auto w-full max-w-xs lg:max-w-lg xl:max-w-xl"
+                src="/product.jpg"
+                alt="Catalog visual"
               />
             </div>
           </div>
@@ -229,6 +269,20 @@ export default function ProductsPage() {
 
       <section className="py-12">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          {/* Search */}
+          <div className="mx-auto mb-8 max-w-xl">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search products, categories, article or barcode..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-12 bg-card pl-12"
+              />
+            </div>
+          </div>
+
           {/* Category Filters */}
           <div className="flex flex-wrap items-center gap-3">
             <Filter className="h-5 w-5 text-muted-foreground" />
@@ -250,7 +304,11 @@ export default function ProductsPage() {
 
           {/* Product Count */}
           <p className="mt-8 text-sm text-muted-foreground">
-            Showing {filteredProducts.length} of {products.length} products
+            Showing{" "}
+            {filteredProducts.length === 0 ? 0 : (currentPage - 1) * PRODUCTS_PER_PAGE + 1}
+            -
+            {Math.min(currentPage * PRODUCTS_PER_PAGE, filteredProducts.length)} of{" "}
+            {filteredProducts.length} matching products ({products.length} total)
           </p>
           {!canViewPrices && (
             <div className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -292,7 +350,7 @@ export default function ProductsPage() {
 
           {/* Product Grid */}
           <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredProducts.map((product) => (
+            {paginatedProducts.map((product) => (
               <div
                 key={product.id}
                 className="group rounded-2xl bg-card p-6 shadow-sm transition-all hover:shadow-md"
@@ -359,6 +417,61 @@ export default function ProductsPage() {
               </div>
             ))}
           </div>
+
+          {!isLoading && filteredProducts.length > 0 && totalPages > 1 && (
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              >
+                Previous
+              </Button>
+
+              {visiblePages[0] > 1 && (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => setCurrentPage(1)}>
+                    1
+                  </Button>
+                  {visiblePages[0] > 2 && (
+                    <span className="px-2 text-sm text-muted-foreground">...</span>
+                  )}
+                </>
+              )}
+
+              {visiblePages.map((page) => (
+                <Button
+                  key={page}
+                  size="sm"
+                  variant={currentPage === page ? "default" : "outline"}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </Button>
+              ))}
+
+              {visiblePages[visiblePages.length - 1] < totalPages && (
+                <>
+                  {visiblePages[visiblePages.length - 1] < totalPages - 1 && (
+                    <span className="px-2 text-sm text-muted-foreground">...</span>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => setCurrentPage(totalPages)}>
+                    {totalPages}
+                  </Button>
+                </>
+              )}
+
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          )}
 
           {/* No Results */}
           {!isLoading && filteredProducts.length === 0 && (

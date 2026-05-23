@@ -1,53 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import {
-  MapPin,
-  Phone,
-  Mail,
-  Clock,
-  Truck,
-  FileText,
-  Send,
-  CheckCircle,
-} from "lucide-react";
+import { MapPin, Mail, Send, CheckCircle } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-
-const contactInfo = [
-  {
-    icon: MapPin,
-    title: "Visit Us",
-    details: ["Rapid Drinks HQ", "Avenue Louise 123", "1050 Brussels, Belgium"],
-  },
-  {
-    icon: Phone,
-    title: "Call Us",
-    details: ["+32 2 123 4567", "+32 2 123 4568 (Orders)", "Mon-Fri: 8am-6pm"],
-  },
-  {
-    icon: Mail,
-    title: "Email Us",
-    details: [
-      "info@rapiddrinks.be",
-      "orders@rapiddrinks.be",
-      "support@rapiddrinks.be",
-    ],
-  },
-  {
-    icon: Clock,
-    title: "Business Hours",
-    details: [
-      "Monday - Friday: 8am - 6pm",
-      "Saturday: 9am - 2pm",
-      "Sunday: Closed",
-    ],
-  },
-];
 
 const businessTypes = [
   "Restaurant",
@@ -78,63 +38,68 @@ export default function ContactPage() {
   return (
     <div className="relative w-full bg-background min-h-screen font-sans overflow-x-hidden">
       <main className="relative z-10 w-full bg-background rounded-b-3xl shadow-2xl">
-      <Header />
+        <Header />
 
-      {/* Hero */}
-      <section className="bg-gradient-to-b from-muted to-background pt-24 pb-16">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h1 className="font-serif text-4xl font-bold text-foreground sm:text-5xl">
-              Get in Touch
-            </h1>
-            <p className="mt-4 text-muted-foreground">
-              Ready to elevate your beverage selection? Contact us for a
-              personalized quote or to learn more about our services.
-            </p>
+        {/* Simple Hero */}
+        <section className="bg-gradient-to-b from-muted/60 to-background pt-24 pb-12">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+            <div className="mx-auto max-w-3xl text-center">
+              <h1 className="font-serif text-4xl font-bold text-foreground sm:text-5xl">
+                Contact Us
+              </h1>
+              <p className="mt-4 text-base text-muted-foreground sm:text-lg">
+                Tell us what you need and our team will reply by email with the right products and
+                wholesale guidance.
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Contact Info Cards */}
-      <section className="py-12">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {contactInfo.map((item) => (
-              <div
-                key={item.title}
-                className="rounded-2xl bg-card p-6 shadow-sm"
-              >
+        {/* Redesigned Contact Layout */}
+        <section className="pb-16 pt-8">
+          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 lg:grid-cols-3 lg:px-8">
+            <aside className="space-y-6 lg:col-span-1">
+              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <item.icon className="h-6 w-6" />
+                  <Mail className="h-6 w-6" />
                 </div>
-                <h3 className="mt-4 font-semibold text-foreground">
-                  {item.title}
-                </h3>
-                <div className="mt-2 flex flex-col gap-1">
-                  {item.details.map((detail, index) => (
-                    <span key={index} className="text-sm text-muted-foreground">
-                      {detail}
-                    </span>
-                  ))}
+                <h2 className="mt-4 font-serif text-2xl font-semibold text-foreground">Email Us</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  For all inquiries, please use our official email address.
+                </p>
+                <a
+                  href="mailto:info@rapiddrinks.be"
+                  className="mt-4 inline-flex text-base font-semibold text-primary hover:text-primary/80"
+                >
+                  info@rapiddrinks.be
+                </a>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                <h3 className="font-semibold text-foreground">What happens next?</h3>
+                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  <li>We review your request and product requirements.</li>
+                  <li>Our team responds by email as soon as possible.</li>
+                  <li>You receive suitable product and ordering guidance.</li>
+                </ul>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="flex aspect-video items-center justify-center bg-muted">
+                  <div className="text-center">
+                    <MapPin className="mx-auto h-10 w-10 text-primary/40" />
+                    <p className="mt-2 text-sm text-muted-foreground">Rue Bara 129, 1070 Anderlecht</p>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            </aside>
 
-      {/* Contact Form & Additional Info */}
-      <section className="py-16">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-16 lg:grid-cols-2">
-            {/* Form */}
-            <div>
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm lg:col-span-2" id="contact-form">
               <h2 className="font-serif text-2xl font-bold text-foreground sm:text-3xl">
-                Request a Quote
+                Send Your Inquiry
               </h2>
               <p className="mt-2 text-muted-foreground">
-                Fill out the form below and our team will get back to you within
-                24 hours.
+                Fill out the form below and we will reply by email.
               </p>
 
               {isSubmitted ? (
@@ -146,8 +111,7 @@ export default function ContactPage() {
                     Thank You!
                   </h3>
                   <p className="mt-2 text-muted-foreground">
-                    We&apos;ve received your inquiry and will contact you within 24
-                    hours.
+                    We&apos;ve received your inquiry and will reply through email soon.
                   </p>
                   <Button
                     className="mt-6"
@@ -199,18 +163,6 @@ export default function ContactPage() {
 
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        value={formState.phone}
-                        onChange={(e) =>
-                          setFormState({ ...formState, phone: e.target.value })
-                        }
-                        placeholder="+32 XXX XXX XXX"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
                       <Label htmlFor="company">Company Name *</Label>
                       <Input
                         id="company"
@@ -220,6 +172,18 @@ export default function ContactPage() {
                           setFormState({ ...formState, company: e.target.value })
                         }
                         placeholder="Your Business Name"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="phone">Phone Number (optional)</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={formState.phone}
+                        onChange={(e) =>
+                          setFormState({ ...formState, phone: e.target.value })
+                        }
+                        placeholder="+32 XXX XXX XXX"
                       />
                     </div>
                   </div>
@@ -268,104 +232,8 @@ export default function ContactPage() {
                 </form>
               )}
             </div>
-
-            {/* Additional Info */}
-            <div className="flex flex-col gap-8">
-              {/* Delivery Info */}
-              <div className="rounded-2xl bg-secondary p-8" id="delivery">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                  <Truck className="h-6 w-6" />
-                </div>
-                <h3 className="mt-4 font-serif text-xl font-semibold text-foreground">
-                  Delivery Information
-                </h3>
-                <ul className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-accent mt-2 flex-shrink-0" />
-                    <span>
-                      <strong className="text-foreground">Same-Day Delivery:</strong>{" "}
-                      Available in Brussels for orders placed before 10am
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-accent mt-2 flex-shrink-0" />
-                    <span>
-                      <strong className="text-foreground">Next-Day Delivery:</strong>{" "}
-                      Available across Belgium for orders placed before 4pm
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-accent mt-2 flex-shrink-0" />
-                    <span>
-                      <strong className="text-foreground">Free Delivery:</strong>{" "}
-                      On orders over €500 (excl. VAT)
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-accent mt-2 flex-shrink-0" />
-                    <span>
-                      <strong className="text-foreground">Temperature Controlled:</strong>{" "}
-                      All deliveries in climate-controlled vehicles
-                    </span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Wholesale Terms */}
-              <div className="rounded-2xl bg-muted p-8" id="terms">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                  <FileText className="h-6 w-6" />
-                </div>
-                <h3 className="mt-4 font-serif text-xl font-semibold text-foreground">
-                  Wholesale Terms
-                </h3>
-                <ul className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                    <span>
-                      <strong className="text-foreground">Minimum Order:</strong>{" "}
-                      €200 for first orders, €100 for repeat customers
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                    <span>
-                      <strong className="text-foreground">Payment Terms:</strong>{" "}
-                      NET 30 for established accounts, COD for new customers
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                    <span>
-                      <strong className="text-foreground">Volume Discounts:</strong>{" "}
-                      5% off orders over €1,000, 10% off orders over €5,000
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                    <span>
-                      <strong className="text-foreground">Returns:</strong>{" "}
-                      Full refund on damaged goods, 14-day return policy
-                    </span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Map Placeholder */}
-              <div className="rounded-2xl bg-card border border-border overflow-hidden">
-                <div className="aspect-video bg-muted flex items-center justify-center">
-                  <div className="text-center">
-                    <MapPin className="h-12 w-12 text-primary/30 mx-auto" />
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Avenue Louise 123, Brussels
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
-        </div>
-      </section>
+        </section>
       </main>
 
       <Footer />
