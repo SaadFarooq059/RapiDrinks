@@ -12,7 +12,7 @@ interface GalleryGridCellProps extends HTMLMotionProps<"div"> {
 }
 
 const SPRING_TRANSITION_CONFIG = {
-  type: "spring",
+  type: "spring" as const,
   stiffness: 100,
   damping: 16,
   mass: 0.75,
@@ -145,7 +145,7 @@ export function CtaSectionWithGallery() {
               <Link href="/contact">Get Started Today</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/about">Learn More About Us</Link>
+              <Link href="/promos">View Current Promos</Link>
             </Button>
           </ContainerAnimated>
         </ContainerStagger>

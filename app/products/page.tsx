@@ -8,7 +8,8 @@ import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { isAuthenticated } from "@/lib/dummy-auth";
+import { AUTH_UPDATED_EVENT, isAuthenticated } from "@/lib/dummy-auth";
+import { CART_UPDATED_EVENT, addToCart, getCartCount } from "@/lib/cart";
 
 type Product = {
   id: string;
@@ -85,9 +86,25 @@ export default function ProductsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canViewPrices, setCanViewPrices] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+  const [lastAddedProductId, setLastAddedProductId] = useState<string | null>(null);
 
   useEffect(() => {
-    setCanViewPrices(isAuthenticated());
+    const syncAuthAndCart = () => {
+      setCanViewPrices(isAuthenticated());
+      setCartCount(getCartCount());
+    };
+
+    syncAuthAndCart();
+    window.addEventListener(AUTH_UPDATED_EVENT, syncAuthAndCart);
+    window.addEventListener(CART_UPDATED_EVENT, syncAuthAndCart);
+    window.addEventListener("storage", syncAuthAndCart);
+
+    return () => {
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncAuthAndCart);
+      window.removeEventListener(CART_UPDATED_EVENT, syncAuthAndCart);
+      window.removeEventListener("storage", syncAuthAndCart);
+    };
   }, []);
 
   useEffect(() => {
@@ -164,6 +181,18 @@ export default function ProductsPage() {
     });
   }, [activeCategory, products, searchQuery]);
 
+  const handleAddToCart = (product: Product) => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      categoryLabel: product.categoryLabel,
+      price: product.price,
+      minOrder: product.minOrder,
+    });
+    setLastAddedProductId(product.id);
+    window.setTimeout(() => setLastAddedProductId(null), 1200);
+  };
+
   return (
     <div className="relative w-full bg-background min-h-screen font-sans overflow-x-hidden">
       <main className="relative z-10 w-full bg-background rounded-b-3xl shadow-2xl">
@@ -239,6 +268,15 @@ export default function ProductsPage() {
               </div>
             </div>
           )}
+          <div className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4 text-primary" />
+              Cart has {cartCount} item{cartCount === 1 ? "" : "s"}.
+            </span>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/cart">Open Cart</Link>
+            </Button>
+          </div>
 
           {isLoading && (
             <div className="mt-6 text-sm text-muted-foreground">
@@ -310,11 +348,13 @@ export default function ProductsPage() {
                 </div>
 
                 {/* Action */}
-                <Button className="mt-4 w-full" variant="outline" asChild>
-                  <Link href="/contact">
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Request Quote
-                  </Link>
+                <Button
+                  className="mt-4 w-full"
+                  variant={lastAddedProductId === product.id ? "default" : "outline"}
+                  onClick={() => handleAddToCart(product)}
+                >
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  {lastAddedProductId === product.id ? "Added" : "Add to Cart"}
                 </Button>
               </div>
             ))}

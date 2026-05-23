@@ -107,17 +107,9 @@ export function FeaturedProducts() {
         transition={{ duration: 0.6 }}
         viewport={{ once: true }}
       >
-        <h2 className="font-serif text-4xl md:text-5xl font-bold text-foreground mb-4 tracking-tight leading-tight">
+        <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4 leading-tight">
           Featured Products
         </h2>
-
-        <motion.div
-          initial={{ scaleX: 0 }}
-          whileInView={{ scaleX: 1 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="h-1 bg-primary mt-4 mx-auto"
-          style={{ width: "60%", maxWidth: "200px" }}
-        />
       </motion.div>
 
       <div className="container mx-auto px-4 relative">

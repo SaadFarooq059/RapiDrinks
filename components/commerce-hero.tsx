@@ -46,7 +46,7 @@ const categories = [
 const navigation = [
   { name: "Home", href: "/" },
   { name: "Products", href: "/products" },
-  { name: "About", href: "/about" },
+  { name: "Promos", href: "/promos" },
   { name: "Contact", href: "/contact" },
 ];
 

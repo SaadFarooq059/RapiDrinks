@@ -13,20 +13,40 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { clearAuthUser, isAuthenticated } from "@/lib/dummy-auth";
+import {
+  AUTH_UPDATED_EVENT,
+  clearAuthUser,
+  isAuthenticated,
+} from "@/lib/dummy-auth";
+import { CART_UPDATED_EVENT, getCartCount } from "@/lib/cart";
 
 const navigation = [
   { name: "Home", href: "/" },
   { name: "Products", href: "/products" },
-  { name: "About", href: "/about" },
+  { name: "Promos", href: "/promos" },
   { name: "Contact", href: "/contact" },
 ];
 
 export function Header() {
   const [authed, setAuthed] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
-    setAuthed(isAuthenticated());
+    const syncHeaderState = () => {
+      setAuthed(isAuthenticated());
+      setCartCount(getCartCount());
+    };
+
+    syncHeaderState();
+    window.addEventListener(AUTH_UPDATED_EVENT, syncHeaderState);
+    window.addEventListener(CART_UPDATED_EVENT, syncHeaderState);
+    window.addEventListener("storage", syncHeaderState);
+
+    return () => {
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncHeaderState);
+      window.removeEventListener(CART_UPDATED_EVENT, syncHeaderState);
+      window.removeEventListener("storage", syncHeaderState);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -66,8 +86,13 @@ export function Header() {
 
             <div className="hidden lg:flex items-center gap-3">
               <Button variant="ghost" size="icon" asChild className="hover:text-primary transition-colors">
-                <Link href="/products" aria-label="Cart">
+                <Link href="/cart" aria-label="Cart" className="relative">
                   <ShoppingCart className="w-5 h-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
                 </Link>
               </Button>
               {authed ? (
@@ -87,18 +112,6 @@ export function Header() {
                   </Link>
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                asChild
-                className="cursor-pointer bg-secondary p-0 rounded-full shadow-sm hover:shadow-md transition-all duration-300 group"
-              >
-                <Link href="/contact" className="flex items-center">
-                  <span className="pl-4 py-2 text-sm font-medium">Get a Quote</span>
-                  <div className="rounded-full flex items-center justify-center bg-background w-9 h-9 ml-2 group-hover:scale-105 transition-transform duration-300 border border-border/50">
-                    <ArrowUpRight className="w-4 h-4" />
-                  </div>
-                </Link>
-              </Button>
             </div>
 
             <Sheet>
@@ -139,9 +152,9 @@ export function Header() {
                 <Separator className="mx-6" />
                 <div className="p-6 flex flex-col gap-4">
                   <Button variant="outline" asChild className="justify-start gap-2 h-12 hover:bg-accent/50 transition-colors">
-                    <Link href="/products">
+                    <Link href="/cart">
                       <ShoppingCart className="w-4 h-4" />
-                      Browse Products
+                      View Cart {cartCount > 0 ? `(${cartCount})` : ""}
                     </Link>
                   </Button>
                   <Button variant="outline" asChild className="justify-start gap-2 h-12 hover:bg-accent/50 transition-colors">
