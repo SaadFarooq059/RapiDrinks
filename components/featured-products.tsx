@@ -17,28 +17,28 @@ type FeaturedProduct = {
 const products: FeaturedProduct[] = [
   {
     id: 1,
-    imageUrl: "https://images.unsplash.com/photo-1586993451228-09818021e309?w=400&h=400&fit=crop",
+    imageUrl: "/images/4.jpg",
     name: "Moët & Chandon Impérial",
     description: "Premium French Champagne with elegant notes and a refined finish.",
     price: 38.99,
   },
   {
     id: 2,
-    imageUrl: "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=400&h=400&fit=crop",
+    imageUrl: "/images/3.jpg",
     name: "Johnnie Walker Black Label",
     description: "A smooth 12-year blended Scotch ideal for premium service menus.",
     price: 28.5,
   },
   {
     id: 3,
-    imageUrl: "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=400&h=400&fit=crop",
+    imageUrl: "/images/2.jpg",
     name: "Château Margaux 2018",
     description: "Bordeaux Grand Cru Classé for high-end wine lists and pairings.",
     price: 299,
   },
   {
     id: 4,
-    imageUrl: "https://images.unsplash.com/photo-1608270586620-248524c67de9?w=400&h=400&fit=crop",
+    imageUrl: "/images/1.jpg",
     name: "Stella Artois Lager",
     description: "Popular Belgian lager in wholesale-friendly packaging options.",
     price: 18.99,
