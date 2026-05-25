@@ -24,7 +24,6 @@ type Product = {
   name: string;
   category: string;
   categoryLabel: string;
-  barcode: string;
   price: number;
   minOrder: number;
   status: string;
@@ -77,7 +76,6 @@ function parseProductsJson(items: RawProduct[]): Product[] {
         name: item.Name.trim(),
         category: slugifyCategory(categoryLabel),
         categoryLabel,
-        barcode: item.Barcode ? String(item.Barcode) : "-",
         price: Number.isFinite(item["Sale Price"]) ? item["Sale Price"] : 0,
         minOrder:
           Number.isFinite(item["Crates Per Pallet"]) && item["Crates Per Pallet"] > 0
@@ -185,9 +183,7 @@ export default function ProductsPage() {
       const query = searchQuery.toLowerCase();
       const matchesSearch =
         product.name.toLowerCase().includes(query) ||
-        product.categoryLabel.toLowerCase().includes(query) ||
-        product.id.toLowerCase().includes(query) ||
-        product.barcode.toLowerCase().includes(query);
+        product.categoryLabel.toLowerCase().includes(query);
       return matchesCategory && matchesSearch;
     });
   }, [activeCategory, products, searchQuery]);
@@ -275,7 +271,7 @@ export default function ProductsPage() {
               <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Search products, categories, article or barcode..."
+                placeholder="Search products and categories..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-12 bg-card pl-12"
@@ -388,10 +384,6 @@ export default function ProductsPage() {
                   {product.name}
                 </h3>
                 <p className="text-sm text-muted-foreground">{product.categoryLabel}</p>
-                <div className="mt-2 text-xs text-muted-foreground space-y-1">
-                  <p>Article: {product.id}</p>
-                  <p>Barcode: {product.barcode}</p>
-                </div>
 
                 <p className="text-xs text-muted-foreground">Min. order: {product.minOrder} crates</p>
                 <div className="mt-3">
