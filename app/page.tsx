@@ -4,6 +4,7 @@ import { FeaturedProducts } from "@/components/featured-products";
 import { WhyChooseUs } from "@/components/why-choose-us";
 import { CtaSectionWithGallery } from "@/components/cta-section-gallery";
 import { TrustedBrands } from "@/components/trusted-brands";
+import { BusinessDiscountSlider } from "@/components/business-discount-slider";
 
 
 
@@ -18,6 +19,9 @@ export default function HomePage() {
 
            {/* Trusted Brands Section */}
            <TrustedBrands />
+
+      {/* Business Discount Slider */}
+      <BusinessDiscountSlider />
 
       {/* Featured Products Section */}
       <FeaturedProducts />

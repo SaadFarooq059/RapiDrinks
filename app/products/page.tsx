@@ -392,7 +392,9 @@ export default function ProductsPage() {
                   ) : (
                     <p className="text-sm font-medium text-muted-foreground inline-flex items-center gap-2">
                       <Lock className="h-4 w-4" />
-                      Price locked
+                      <Link href="/signin?next=/products" className="text-primary hover:underline">
+                        Login to see price
+                      </Link>
                     </p>
                   )}
                 </div>
