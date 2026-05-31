@@ -42,7 +42,7 @@ export default function ContactPage() {
 
         {/* Simple Hero */}
         <section className="bg-gradient-to-b from-muted/60 to-background pt-24 pb-12">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-3xl text-center">
               <h1 className="font-serif text-4xl font-bold text-foreground sm:text-5xl">
                 Contact Us
@@ -57,7 +57,7 @@ export default function ContactPage() {
 
         {/* Redesigned Contact Layout */}
         <section className="pb-16 pt-8">
-          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 lg:grid-cols-3 lg:px-8">
+          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
             <aside className="space-y-6 lg:col-span-1">
               <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">

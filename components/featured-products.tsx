@@ -127,7 +127,7 @@ export function FeaturedProducts() {
           dragElastic={0.2}
           onDragEnd={handleDragEnd}
         >
-          <div className="absolute left-2 md:left-10 top-1/2 transform -translate-y-1/2 z-[110]">
+          <div className="absolute left-2 top-1/2 z-[110] -translate-y-1/2 md:left-10">
             <button
               onClick={handlePrev}
               className="bg-primary hover:bg-primary/90 text-primary-foreground w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-transform hover:scale-110 shadow-md"
@@ -137,7 +137,7 @@ export function FeaturedProducts() {
             </button>
           </div>
 
-          <div className="absolute right-2 md:right-10 top-1/2 transform -translate-y-1/2 z-[110]">
+          <div className="absolute right-2 top-1/2 z-[110] -translate-y-1/2 md:right-10">
             <button
               onClick={handleNext}
               className="bg-primary hover:bg-primary/90 text-primary-foreground w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-transform hover:scale-110 shadow-md"
@@ -178,7 +178,7 @@ export function FeaturedProducts() {
                   transform: `translateX(-50%) translateX(${x}px) translateY(${y}px) scale(${scale})`,
                   opacity: isVisible ? Math.max(1 - distance * 0.2, 0.1) : 0,
                   zIndex: 100 - distance,
-                  width: isMobile ? "330px" : "360px",
+                  width: isMobile ? "min(86vw, 330px)" : "360px",
                   pointerEvents: isVisible ? "auto" : "none",
                   transformOrigin: "center center",
                 }}

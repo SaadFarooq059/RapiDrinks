@@ -64,7 +64,7 @@ export function CommerceHero() {
   };
 
   return (
-    <div className="w-full relative container px-2 mx-auto max-w-7xl min-h-screen">
+    <div className="relative min-h-screen w-full max-w-7xl container mx-auto px-4 sm:px-6">
       <div className="mt-4 sm:mt-6 bg-accent/10 rounded-2xl relative overflow-hidden min-h-[70vh] sm:min-h-[78vh]">
         <div className="absolute inset-0">
           <video
@@ -147,7 +147,7 @@ export function CommerceHero() {
               </SheetTrigger>
               <SheetContent
                 side="left"
-                className="w-[300px] sm:w-[400px] p-0 bg-background/95 backdrop-blur-md border-r border-border/50"
+                className="w-[85vw] max-w-[400px] p-0 bg-background/95 backdrop-blur-md border-r border-border/50"
               >
                 <SheetHeader className="p-6 text-left border-b border-border/50">
                   <SheetTitle className="flex items-center justify-between">

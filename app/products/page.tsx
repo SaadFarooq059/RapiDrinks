@@ -234,7 +234,7 @@ export default function ProductsPage() {
 
       {/* Hero */}
       <section className="bg-gradient-to-b from-background via-muted/30 to-background py-12 sm:pb-16 lg:pb-20 xl:pb-24">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="relative">
             <div className="lg:w-2/3">
               <p className="text-xs font-normal uppercase tracking-widest text-muted-foreground sm:text-sm">
@@ -264,7 +264,7 @@ export default function ProductsPage() {
       </section>
 
       <section className="py-12">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Search */}
           <div className="mx-auto mb-8 max-w-xl">
             <div className="relative">
@@ -480,7 +480,7 @@ export default function ProductsPage() {
 
       {/* CTA */}
       <section className="bg-muted py-16">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="font-serif text-2xl font-bold text-foreground sm:text-3xl">
               Can&apos;t Find What You&apos;re Looking For?

@@ -86,7 +86,7 @@ const GalleryGrid = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        "grid grid-cols-2 grid-rows-[50px_150px_50px_150px_50px] gap-4",
+        "grid grid-cols-2 grid-rows-[36px_110px_36px_110px_36px] gap-3 sm:grid-rows-[50px_150px_50px_150px_50px] sm:gap-4",
         className
       )}
       {...props}
@@ -127,7 +127,7 @@ const IMAGES = [
 export function CtaSectionWithGallery() {
   return (
     <section className="bg-muted/30">
-      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-8 px-8 py-20 md:grid-cols-2">
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-8 px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20 md:grid-cols-2">
         <ContainerStagger>
           <ContainerAnimated className="mb-4 block text-xs font-medium text-primary md:text-sm">
             Partner With Us

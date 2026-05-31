@@ -57,7 +57,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      <div className="container px-2 mx-auto max-w-7xl">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mt-2 bg-background/95 backdrop-blur-md rounded-2xl border border-border/50 shadow-sm">
           <div className="flex items-center justify-between p-3 lg:p-4">
             <Link href="/" className="flex items-center">
@@ -122,7 +122,7 @@ export function Header() {
               </SheetTrigger>
               <SheetContent
                 side="left"
-                className="w-[300px] sm:w-[400px] p-0 bg-background/95 backdrop-blur-md border-r border-border/50"
+                className="w-[85vw] max-w-[400px] p-0 bg-background/95 backdrop-blur-md border-r border-border/50"
               >
                 <SheetHeader className="p-6 text-left border-b border-border/50">
                   <SheetTitle className="flex items-center justify-between">

@@ -69,18 +69,15 @@ export default function CartPage() {
         <Header />
 
         <section className="bg-gradient-to-b from-muted to-background pt-24 pb-10">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <h1 className="font-serif text-4xl font-bold text-foreground sm:text-5xl">
               Your Cart
             </h1>
-            <p className="mt-3 text-muted-foreground">
-              Add products from catalog, update quantities, and proceed with dummy checkout.
-            </p>
           </div>
         </section>
 
         <section className="pb-16">
-          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 lg:grid-cols-3 lg:px-8">
+          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
             <div className="space-y-4 lg:col-span-2">
               {items.length === 0 ? (
                 <div className="rounded-2xl border border-border bg-card p-8 text-center">
@@ -202,12 +199,12 @@ export default function CartPage() {
                 disabled={!authed || items.length === 0 || isCheckingOut}
                 onClick={handleCheckout}
               >
-                {isCheckingOut ? "Processing..." : "Dummy Checkout"}
+                {isCheckingOut ? "Processing..." : "Checkout"}
               </Button>
 
               {checkoutDone && (
                 <p className="mt-3 text-xs text-primary">
-                  Order placed (dummy). Stripe/payment gateway can be connected later.
+                  Order placed successfully.
                 </p>
               )}
             </aside>

@@ -33,7 +33,7 @@ export default function PromosPage() {
         <PromosHero />
 
         <section className="py-12">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 sm:px-6 md:grid-cols-2 lg:grid-cols-3 lg:px-8">
             {promos.map((promo) => (
               <SlideToUnlock
                 key={promo.title}
@@ -75,7 +75,7 @@ export default function PromosPage() {
         </section>
 
         <section className="pb-16">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="rounded-2xl border border-border bg-muted/40 p-8 text-center">
               <h3 className="font-serif text-2xl font-bold text-foreground">Need a custom wholesale offer?</h3>
               <p className="mt-3 text-muted-foreground">
