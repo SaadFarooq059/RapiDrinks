@@ -39,6 +39,10 @@ function emitCartUpdated(): void {
   window.dispatchEvent(new Event(CART_UPDATED_EVENT));
 }
 
+export function notifyCartUpdated(): void {
+  emitCartUpdated();
+}
+
 function mapCartItem(item: CartResponseItem): CartItem {
   return {
     sku: item.sku,

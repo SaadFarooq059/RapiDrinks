@@ -414,14 +414,18 @@ export default function ProductsPage() {
                   return (
                     <>
                 {/* Product Image Placeholder */}
-                <div className="aspect-square rounded-xl bg-muted flex items-center justify-center overflow-hidden">
+                <div className="relative aspect-square rounded-xl bg-muted flex items-center justify-center overflow-hidden">
                   {product.imageUrl ? (
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
+                    <>
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                      {/* Mask the supplier badge in the top-right corner */}
+                      <div className="pointer-events-none absolute right-0 top-0 h-20 w-20 bg-white" />
+                    </>
                   ) : (
                     <div className="text-center">
                       {product.category.includes("beer") && (

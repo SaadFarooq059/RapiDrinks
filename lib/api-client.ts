@@ -46,9 +46,24 @@ function handleUnauthorized(mode: UnauthorizedMode): void {
 }
 
 function extractErrorMessage(data: unknown, fallback: string): string {
+  if (typeof data === "string" && data.trim().length > 0) return data;
+
   if (data && typeof data === "object") {
-    const value = (data as Record<string, unknown>).message;
-    if (typeof value === "string" && value.trim().length > 0) return value;
+    const record = data as Record<string, unknown>;
+    for (const key of ["message", "error", "detail"]) {
+      const value = record[key];
+      if (typeof value === "string" && value.trim().length > 0) return value;
+    }
+
+    const errors = record.errors;
+    if (Array.isArray(errors) && errors.length > 0) {
+      const first = errors[0];
+      if (typeof first === "string" && first.trim().length > 0) return first;
+      if (first && typeof first === "object") {
+        const msg = (first as Record<string, unknown>).message;
+        if (typeof msg === "string" && msg.trim().length > 0) return msg;
+      }
+    }
   }
   return fallback;
 }

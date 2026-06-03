@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowUpRight, Menu, LogIn, LogOut, ShoppingCart } from "lucide-react";
+import { ArrowUpRight, Menu, LogIn, LogOut, ShoppingCart, Package } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -98,6 +98,13 @@ export function Header() {
             </nav>
 
             <div className="hidden lg:flex items-center gap-3">
+              {authed && (
+                <Button variant="ghost" size="icon" asChild className="hover:text-primary transition-colors">
+                  <Link href="/orders" aria-label="My orders">
+                    <Package className="w-5 h-5" />
+                  </Link>
+                </Button>
+              )}
               <Button variant="ghost" size="icon" asChild className="hover:text-primary transition-colors">
                 <Link href="/cart" aria-label="Cart" className="relative">
                   <ShoppingCart className="w-5 h-5" />
@@ -170,12 +177,22 @@ export function Header() {
                       View Cart {cartCount > 0 ? `(${cartCount})` : ""}
                     </Link>
                   </Button>
-                  <Button variant="outline" asChild className="justify-start gap-2 h-12 hover:bg-accent/50 transition-colors">
-                    <Link href="/signin">
-                      <LogIn className="w-4 h-4" />
-                      Sign In
-                    </Link>
-                  </Button>
+                  {authed && (
+                    <Button variant="outline" asChild className="justify-start gap-2 h-12 hover:bg-accent/50 transition-colors">
+                      <Link href="/orders">
+                        <Package className="w-4 h-4" />
+                        My Orders
+                      </Link>
+                    </Button>
+                  )}
+                  {!authed && (
+                    <Button variant="outline" asChild className="justify-start gap-2 h-12 hover:bg-accent/50 transition-colors">
+                      <Link href="/signin">
+                        <LogIn className="w-4 h-4" />
+                        Sign In
+                      </Link>
+                    </Button>
+                  )}
                   {authed && (
                     <Button
                       variant="outline"

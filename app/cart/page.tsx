@@ -10,14 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   CART_UPDATED_EVENT,
-  clearCart,
   getCartItems,
   removeFromCart,
   updateCartItemQuantity,
   type CartItem,
 } from "@/lib/cart";
 import { AUTH_UPDATED_EVENT, isAuthenticated } from "@/lib/dummy-auth";
-import { apiRequest } from "@/lib/api-client";
 
 function getPackLabel(packType: "single" | "crate", sizeLabel: string): string {
   if (packType === "crate") {
@@ -31,8 +29,6 @@ export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [authed, setAuthed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [checkoutDone, setCheckoutDone] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingSku, setPendingSku] = useState<string | null>(null);
 
@@ -85,29 +81,9 @@ export default function CartPage() {
     [items]
   );
 
-  const handleCheckout = async () => {
-    if (!authed || items.length === 0 || isCheckingOut || pendingSku) return;
-    setActionError(null);
-    setCheckoutDone(false);
-    setIsCheckingOut(true);
-
-    try {
-      await apiRequest("/orders/checkout", {
-        method: "POST",
-        auth: true,
-        body: {
-          notes: "",
-          paymentMethod: "invoice",
-        },
-      });
-      await clearCart();
-      setItems([]);
-      setCheckoutDone(true);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Checkout failed.");
-    } finally {
-      setIsCheckingOut(false);
-    }
+  const handleCheckout = () => {
+    if (!authed || items.length === 0 || isLoading || pendingSku) return;
+    router.push("/checkout");
   };
 
   const handleRemoveItem = async (sku: string) => {
@@ -287,23 +263,12 @@ export default function CartPage() {
 
               <Button
                 className="mt-5 w-full"
-                disabled={
-                  !authed ||
-                  items.length === 0 ||
-                  isCheckingOut ||
-                  isLoading ||
-                  pendingSku !== null
-                }
+                disabled={!authed || items.length === 0 || isLoading || pendingSku !== null}
                 onClick={handleCheckout}
               >
-                {isCheckingOut ? "Processing..." : "Checkout"}
+                Proceed to Checkout
               </Button>
 
-              {checkoutDone && (
-                <p className="mt-3 text-xs text-primary">
-                  Order placed successfully.
-                </p>
-              )}
               {actionError && <p className="mt-3 text-xs text-destructive">{actionError}</p>}
             </aside>
           </div>
