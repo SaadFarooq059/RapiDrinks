@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, type PanInfo } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { AUTH_UPDATED_EVENT, isAuthenticated } from "@/lib/dummy-auth";
-import { addToCart } from "@/lib/cart";
 
 type FeaturedProduct = {
   id: number;
@@ -47,6 +47,7 @@ const products: FeaturedProduct[] = [
 ];
 
 export function FeaturedProducts() {
+  const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [authed, setAuthed] = useState(false);
@@ -87,16 +88,12 @@ export function FeaturedProducts() {
     if (info.offset.x < -swipeThreshold) handleNext();
   };
 
-  const handleAddToCart = async (product: FeaturedProduct) => {
-    if (!authed) return;
-    await addToCart({
-      id: String(product.id),
-      name: product.name,
-      categoryLabel: "Featured",
-      price: product.price,
-      minOrder: 1,
-      quantity: 1,
-    });
+  const handleAddToCart = () => {
+    if (!authed) {
+      router.push("/signin?next=/products");
+      return;
+    }
+    router.push("/products");
   };
 
   return (
@@ -238,15 +235,10 @@ export function FeaturedProducts() {
 
                       <div className="flex justify-center mt-auto">
                         <button
-                          onClick={() => handleAddToCart(product)}
-                          disabled={!authed}
-                          className={`inline-flex items-center justify-center px-5 py-2 text-sm font-medium rounded-full transition-all duration-300 ${
-                            authed
-                              ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-lg"
-                              : "bg-muted text-muted-foreground cursor-not-allowed"
-                          }`}
+                          onClick={handleAddToCart}
+                          className="inline-flex items-center justify-center px-5 py-2 text-sm font-medium rounded-full transition-all duration-300 bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-lg"
                         >
-                          {authed ? "Add to Cart" : "Login to Add"}
+                          {authed ? "View in Catalog" : "Login to Order"}
                         </button>
                       </div>
                     </div>

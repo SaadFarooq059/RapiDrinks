@@ -10,6 +10,7 @@ type AccountType = "personal" | "business";
 export default function SignUpPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const redirectPath = useMemo(() => {
     if (typeof window === "undefined") return null;
@@ -21,6 +22,7 @@ export default function SignUpPage() {
     accountType: AccountType
   ) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setError(null);
 
     const formData = new FormData(e.currentTarget);
@@ -30,13 +32,27 @@ export default function SignUpPage() {
     const email = String(formData.get("email") || "");
     const password = String(formData.get("password") || "");
     const safeEmail = email.trim().toLowerCase();
-    if (!safeEmail || !password.trim()) return;
+    if (!safeEmail || !password.trim()) {
+      setError("Please enter your email and password.");
+      return;
+    }
 
     const safeName = accountType === "business" ? businessName : fullName;
-    if (!safeName) return;
+    if (!safeName) {
+      setError(
+        accountType === "business"
+          ? "Please enter your business name."
+          : "Please enter your full name."
+      );
+      return;
+    }
 
-    if (accountType === "business" && !vatNumber) return;
+    if (accountType === "business" && !vatNumber) {
+      setError("Please enter your VAT number.");
+      return;
+    }
 
+    setIsSubmitting(true);
     try {
       if (accountType === "business") {
         await signUp({
@@ -57,6 +73,8 @@ export default function SignUpPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create account.");
       return;
+    } finally {
+      setIsSubmitting(false);
     }
 
     const nextPath = redirectPath || "/products";
@@ -69,7 +87,13 @@ export default function SignUpPage() {
     <SignUpTemplate
       title={<span className="font-light text-foreground tracking-tighter">Join Rapid Drinks</span>}
       description={
-        error ? <span className="text-destructive">{error}</span> : "Pick your account type and start ordering in minutes."
+        error ? (
+          <span className="text-destructive">{error}</span>
+        ) : isSubmitting ? (
+          "Creating your account..."
+        ) : (
+          "Pick your account type and start ordering in minutes."
+        )
       }
       heroImageSrc="https://images.unsplash.com/photo-1578911373434-0cb395d2cbfb?w=2160&q=80"
       onSignUp={handleSubmit}

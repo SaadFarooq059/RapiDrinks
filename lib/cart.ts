@@ -3,9 +3,10 @@ import { apiRequest } from "@/lib/api-client";
 export const CART_UPDATED_EVENT = "rapid-drinks-cart-updated";
 
 export type CartItem = {
-  id: string;
+  sku: string;
   name: string;
-  categoryLabel: string;
+  sizeLabel: string;
+  packType: "single" | "crate";
   price: number;
   minOrder: number;
   quantity: number;
@@ -13,8 +14,10 @@ export type CartItem = {
 };
 
 type CartResponseItem = {
-  productId: string;
+  sku: string;
   name: string;
+  sizeLabel: string;
+  packType: "single" | "crate";
   quantity: number;
   unitPrice: number;
   lineTotal: number;
@@ -38,9 +41,10 @@ function emitCartUpdated(): void {
 
 function mapCartItem(item: CartResponseItem): CartItem {
   return {
-    id: item.productId,
+    sku: item.sku,
     name: item.name,
-    categoryLabel: "Product",
+    sizeLabel: item.sizeLabel,
+    packType: item.packType,
     price: item.unitPrice,
     minOrder: item.minOrder && item.minOrder > 0 ? item.minOrder : 1,
     quantity: item.quantity > 0 ? item.quantity : 1,
@@ -60,8 +64,12 @@ export async function getCartItems(): Promise<CartItem[]> {
 }
 
 export async function addToCart(
-  item: Omit<CartItem, "quantity"> & { quantity?: number }
+  item: { sku?: string; id?: string; quantity?: number; minOrder?: number }
 ): Promise<void> {
+  const sku = item.sku || item.id;
+  if (!sku) {
+    throw new Error("Missing sku for cart item.");
+  }
   const quantity =
     Number.isFinite(item.quantity) && Number(item.quantity) > 0
       ? Math.floor(Number(item.quantity))
@@ -71,15 +79,15 @@ export async function addToCart(
     method: "POST",
     auth: true,
     body: {
-      productId: item.id,
+      sku,
       quantity,
     },
   });
   emitCartUpdated();
 }
 
-export async function updateCartItemQuantity(id: string, quantity: number): Promise<void> {
-  await apiRequest(`/cart/items/${encodeURIComponent(id)}`, {
+export async function updateCartItemQuantity(sku: string, quantity: number): Promise<void> {
+  await apiRequest(`/cart/items/${encodeURIComponent(sku)}`, {
     method: "PATCH",
     auth: true,
     body: {
@@ -89,8 +97,8 @@ export async function updateCartItemQuantity(id: string, quantity: number): Prom
   emitCartUpdated();
 }
 
-export async function removeFromCart(id: string): Promise<void> {
-  await apiRequest(`/cart/items/${encodeURIComponent(id)}`, {
+export async function removeFromCart(sku: string): Promise<void> {
+  await apiRequest(`/cart/items/${encodeURIComponent(sku)}`, {
     method: "DELETE",
     auth: true,
   });

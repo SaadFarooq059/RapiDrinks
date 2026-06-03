@@ -19,13 +19,22 @@ import {
 import { AUTH_UPDATED_EVENT, isAuthenticated } from "@/lib/dummy-auth";
 import { apiRequest } from "@/lib/api-client";
 
+function getPackLabel(packType: "single" | "crate", sizeLabel: string): string {
+  if (packType === "crate") {
+    return sizeLabel ? `Crate of ${sizeLabel}` : "Crate";
+  }
+  return sizeLabel || "Single";
+}
+
 export default function CartPage() {
   const router = useRouter();
   const [items, setItems] = useState<CartItem[]>([]);
   const [authed, setAuthed] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutDone, setCheckoutDone] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingSku, setPendingSku] = useState<string | null>(null);
 
   useEffect(() => {
     const syncState = async () => {
@@ -34,6 +43,7 @@ export default function CartPage() {
 
       if (!authenticated) {
         setItems([]);
+        setIsLoading(false);
         router.replace(`/signin?next=${encodeURIComponent("/cart")}`);
         return;
       }
@@ -41,8 +51,11 @@ export default function CartPage() {
       try {
         const cartItems = await getCartItems();
         setItems(cartItems);
+        setActionError(null);
       } catch (error) {
         setActionError(error instanceof Error ? error.message : "Unable to load cart.");
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -73,7 +86,7 @@ export default function CartPage() {
   );
 
   const handleCheckout = async () => {
-    if (!authed || items.length === 0 || isCheckingOut) return;
+    if (!authed || items.length === 0 || isCheckingOut || pendingSku) return;
     setActionError(null);
     setCheckoutDone(false);
     setIsCheckingOut(true);
@@ -97,25 +110,33 @@ export default function CartPage() {
     }
   };
 
-  const handleRemoveItem = async (id: string) => {
+  const handleRemoveItem = async (sku: string) => {
+    if (pendingSku) return;
     setActionError(null);
+    setPendingSku(sku);
     try {
-      await removeFromCart(id);
+      await removeFromCart(sku);
       const cartItems = await getCartItems();
       setItems(cartItems);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to update cart.");
+    } finally {
+      setPendingSku(null);
     }
   };
 
-  const handleUpdateQuantity = async (id: string, quantity: number) => {
+  const handleUpdateQuantity = async (sku: string, quantity: number) => {
+    if (pendingSku) return;
     setActionError(null);
+    setPendingSku(sku);
     try {
-      await updateCartItemQuantity(id, quantity);
+      await updateCartItemQuantity(sku, quantity);
       const cartItems = await getCartItems();
       setItems(cartItems);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to update quantity.");
+    } finally {
+      setPendingSku(null);
     }
   };
 
@@ -135,7 +156,11 @@ export default function CartPage() {
         <section className="pb-16">
           <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
             <div className="space-y-4 lg:col-span-2">
-              {items.length === 0 ? (
+              {isLoading ? (
+                <div className="rounded-2xl border border-border bg-card p-8 text-center">
+                  <p className="text-sm text-muted-foreground">Loading your cart...</p>
+                </div>
+              ) : items.length === 0 ? (
                 <div className="rounded-2xl border border-border bg-card p-8 text-center">
                   <ShoppingCart className="mx-auto h-10 w-10 text-muted-foreground" />
                   <h2 className="mt-4 text-xl font-semibold text-foreground">Cart is empty</h2>
@@ -149,22 +174,25 @@ export default function CartPage() {
               ) : (
                 items.map((item) => (
                   <div
-                    key={item.id}
+                    key={item.sku}
                     className="rounded-2xl border border-border bg-card p-5 shadow-sm"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h2 className="text-lg font-semibold text-foreground">{item.name}</h2>
-                        <p className="text-sm text-muted-foreground">{item.categoryLabel}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Article: {item.id}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {getPackLabel(item.packType, item.sizeLabel)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">SKU: {item.sku}</p>
                         <Badge variant="secondary" className="mt-2 text-xs font-normal">
-                          Min order: {item.minOrder} crates
+                          Min order: {item.minOrder} {item.packType === "crate" ? "crates" : "units"}
                         </Badge>
                       </div>
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => void handleRemoveItem(item.id)}
+                        onClick={() => void handleRemoveItem(item.sku)}
+                        disabled={pendingSku === item.sku}
                         aria-label="Remove item"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -178,8 +206,12 @@ export default function CartPage() {
                           size="icon"
                           className="rounded-full"
                           onClick={() =>
-                            void handleUpdateQuantity(item.id, Math.max(1, item.quantity - 1))
+                            void handleUpdateQuantity(
+                              item.sku,
+                              Math.max(item.minOrder, item.quantity - 1)
+                            )
                           }
+                          disabled={pendingSku === item.sku || item.quantity <= item.minOrder}
                           aria-label="Decrease quantity"
                         >
                           <Minus className="h-4 w-4" />
@@ -191,7 +223,10 @@ export default function CartPage() {
                           variant="ghost"
                           size="icon"
                           className="rounded-full"
-                          onClick={() => void handleUpdateQuantity(item.id, item.quantity + 1)}
+                          onClick={() =>
+                            void handleUpdateQuantity(item.sku, Math.min(999, item.quantity + 1))
+                          }
+                          disabled={pendingSku === item.sku}
                           aria-label="Increase quantity"
                         >
                           <Plus className="h-4 w-4" />
@@ -252,7 +287,13 @@ export default function CartPage() {
 
               <Button
                 className="mt-5 w-full"
-                disabled={!authed || items.length === 0 || isCheckingOut}
+                disabled={
+                  !authed ||
+                  items.length === 0 ||
+                  isCheckingOut ||
+                  isLoading ||
+                  pendingSku !== null
+                }
                 onClick={handleCheckout}
               >
                 {isCheckingOut ? "Processing..." : "Checkout"}

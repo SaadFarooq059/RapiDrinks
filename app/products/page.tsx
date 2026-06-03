@@ -10,6 +10,8 @@ import {
   GlassWater,
   ShoppingCart,
   Lock,
+  Minus,
+  Plus,
 } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -19,18 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { AUTH_UPDATED_EVENT, isAuthenticated } from "@/lib/dummy-auth";
 import { CART_UPDATED_EVENT, addToCart, getCartCount } from "@/lib/cart";
 import { apiRequest } from "@/lib/api-client";
-
-type Product = {
-  id: string;
-  name: string;
-  category: string;
-  categoryLabel: string;
-  price: number | null;
-  minOrder: number;
-  status: string;
-  tags: string[];
-  imageUrl?: string;
-};
 
 type Category = {
   id: string;
@@ -46,13 +36,33 @@ type ApiCategory = {
 };
 
 type ProductsResponse = {
-  items: Product[];
+  items: ProductGroup[];
   pagination: {
     page: number;
     limit: number;
     totalItems: number;
     totalPages: number;
   };
+};
+
+type ProductVariant = {
+  sku: string;
+  sizeLabel: string;
+  packType: "single" | "crate";
+  unitsPerPack: number;
+  price: number | null;
+  minOrder: number;
+};
+
+type ProductGroup = {
+  id: string;
+  name: string;
+  category: string;
+  categoryLabel: string;
+  status: string;
+  tags: string[];
+  imageUrl?: string;
+  variants: ProductVariant[];
 };
 
 const PRODUCTS_PER_PAGE = 12;
@@ -71,10 +81,22 @@ function getCategoryIcon(categoryLabel: string): Category["icon"] {
   return GlassWater;
 }
 
+function toVariantLabel(
+  variant: Pick<ProductVariant, "packType" | "unitsPerPack" | "sizeLabel">
+): string {
+  if (variant.packType === "crate") {
+    return `Crate of ${variant.unitsPerPack}`;
+  }
+  return variant.sizeLabel || "Single";
+}
+
 export default function ProductsPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductGroup[]>([]);
+  const [selectedVariantByProduct, setSelectedVariantByProduct] = useState<
+    Record<string, string>
+  >({});
   const [categories, setCategories] = useState<Category[]>([
     { id: "all", name: "All Products", icon: null },
   ]);
@@ -87,6 +109,8 @@ export default function ProductsPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [cartActionError, setCartActionError] = useState<string | null>(null);
+  const [quantityBySku, setQuantityBySku] = useState<Record<string, number>>({});
+  const [addingSku, setAddingSku] = useState<string | null>(null);
 
   useEffect(() => {
     const syncAuthAndCart = async () => {
@@ -164,6 +188,29 @@ export default function ProductsPage() {
         const response = await apiRequest<ProductsResponse>(`/products?${params.toString()}`);
         if (!isMounted) return;
         setProducts(response.items);
+        setSelectedVariantByProduct((prev) => {
+          const next: Record<string, string> = { ...prev };
+          for (const product of response.items) {
+            const hasSelection =
+              next[product.id] &&
+              product.variants.some((variant) => variant.sku === next[product.id]);
+            if (!hasSelection && product.variants.length > 0) {
+              next[product.id] = product.variants[0].sku;
+            }
+          }
+          return next;
+        });
+        setQuantityBySku((prev) => {
+          const next = { ...prev };
+          for (const product of response.items) {
+            for (const variant of product.variants || []) {
+              if (!next[variant.sku] || next[variant.sku] < variant.minOrder) {
+                next[variant.sku] = variant.minOrder;
+              }
+            }
+          }
+          return next;
+        });
         setTotalItems(response.pagination.totalItems);
         setTotalPages(Math.max(1, response.pagination.totalPages));
       } catch (error) {
@@ -210,22 +257,24 @@ export default function ProductsPage() {
     setCurrentPage(1);
   }, [activeCategory, searchQuery]);
 
-  const handleAddToCart = async (product: Product) => {
-    if (!canViewPrices || product.price === null) return;
+  const handleAddToCart = async (product: ProductGroup, variant: ProductVariant | null) => {
+    if (!canViewPrices || !variant || variant.price === null) return;
+    if (addingSku) return;
     setCartActionError(null);
+    setAddingSku(variant.sku);
+    const quantity = Math.max(variant.minOrder, quantityBySku[variant.sku] || variant.minOrder);
     try {
       await addToCart({
-        id: product.id,
-        name: product.name,
-        categoryLabel: product.categoryLabel,
-        price: product.price,
-        minOrder: product.minOrder,
-        quantity: product.minOrder,
+        sku: variant.sku,
+        minOrder: variant.minOrder,
+        quantity,
       });
-      setLastAddedProductId(product.id);
+      setLastAddedProductId(variant.sku);
       window.setTimeout(() => setLastAddedProductId(null), 1200);
     } catch (error) {
       setCartActionError(error instanceof Error ? error.message : "Unable to add to cart.");
+    } finally {
+      setAddingSku(null);
     }
   };
 
@@ -353,28 +402,44 @@ export default function ProductsPage() {
           {/* Product Grid */}
           <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {products.map((product) => (
-              <div
-                key={product.id}
-                className="group rounded-2xl bg-card p-6 shadow-sm transition-all hover:shadow-md"
-              >
+              <div key={product.id} className="group rounded-2xl bg-card p-6 shadow-sm transition-all hover:shadow-md">
+                {(() => {
+                  const variants = product.variants || [];
+                  const selectedSku = selectedVariantByProduct[product.id];
+                  const selectedVariant =
+                    variants.find((variant) => variant.sku === selectedSku) ||
+                    variants[0] ||
+                    null;
+
+                  return (
+                    <>
                 {/* Product Image Placeholder */}
                 <div className="aspect-square rounded-xl bg-muted flex items-center justify-center overflow-hidden">
-                  <div className="text-center">
-                    {product.category.includes("beer") && (
-                      <Beer className="h-16 w-16 text-primary/30 mx-auto" />
-                    )}
-                    {product.category.includes("mixer") && (
-                      <Martini className="h-16 w-16 text-primary/30 mx-auto" />
-                    )}
-                    {!product.category.includes("beer") && !product.category.includes("mixer") && (
-                      <GlassWater className="h-16 w-16 text-primary/30 mx-auto" />
-                    )}
-                  </div>
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="text-center">
+                      {product.category.includes("beer") && (
+                        <Beer className="h-16 w-16 text-primary/30 mx-auto" />
+                      )}
+                      {product.category.includes("mixer") && (
+                        <Martini className="h-16 w-16 text-primary/30 mx-auto" />
+                      )}
+                      {!product.category.includes("beer") && !product.category.includes("mixer") && (
+                        <GlassWater className="h-16 w-16 text-primary/30 mx-auto" />
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Tags */}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {product.tags.map((tag) => (
+                  {(product.tags || []).map((tag) => (
                     <Badge
                       key={tag}
                       variant="secondary"
@@ -390,11 +455,44 @@ export default function ProductsPage() {
                   {product.name}
                 </h3>
                 <p className="text-sm text-muted-foreground">{product.categoryLabel}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {variants.map((variant) => {
+                    const isSelected = selectedVariant?.sku === variant.sku;
+                    return (
+                      <button
+                        key={variant.sku}
+                        type="button"
+                        onClick={() =>
+                          setSelectedVariantByProduct((prev) => ({
+                            ...prev,
+                            [product.id]: variant.sku,
+                          }))
+                        }
+                        className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                          isSelected
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {toVariantLabel(variant)}
+                      </button>
+                    );
+                  })}
+                </div>
 
-                <p className="text-xs text-muted-foreground">Min. order: {product.minOrder} crates</p>
+                <p className="text-xs text-muted-foreground">
+                  Min. order:{" "}
+                  {selectedVariant
+                    ? `${selectedVariant.minOrder} ${
+                        selectedVariant.packType === "crate" ? "crates" : "units"
+                      }`
+                    : "-"}
+                </p>
                 <div className="mt-3">
-                  {product.price !== null ? (
-                    <p className="text-xl font-bold text-foreground">EUR {product.price.toFixed(2)}</p>
+                  {selectedVariant?.price !== null && selectedVariant?.price !== undefined ? (
+                    <p className="text-xl font-bold text-foreground">
+                      EUR {selectedVariant.price.toFixed(2)}
+                    </p>
                   ) : (
                     <p className="text-sm font-medium text-muted-foreground inline-flex items-center gap-2">
                       <Lock className="h-4 w-4" />
@@ -405,20 +503,72 @@ export default function ProductsPage() {
                   )}
                 </div>
 
+                {selectedVariant && selectedVariant.price !== null && (
+                  <div className="mt-3 inline-flex items-center rounded-full border border-border">
+                    <button
+                      type="button"
+                      className="inline-flex h-8 w-8 items-center justify-center"
+                      onClick={() =>
+                        setQuantityBySku((prev) => ({
+                          ...prev,
+                          [selectedVariant.sku]: Math.max(
+                            selectedVariant.minOrder,
+                            (prev[selectedVariant.sku] || selectedVariant.minOrder) - 1
+                          ),
+                        }))
+                      }
+                      aria-label="Decrease quantity"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+                    <span className="min-w-10 text-center text-sm font-medium">
+                      {Math.max(
+                        selectedVariant.minOrder,
+                        quantityBySku[selectedVariant.sku] || selectedVariant.minOrder
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      className="inline-flex h-8 w-8 items-center justify-center"
+                      onClick={() =>
+                        setQuantityBySku((prev) => ({
+                          ...prev,
+                          [selectedVariant.sku]: Math.min(
+                            999,
+                            (prev[selectedVariant.sku] || selectedVariant.minOrder) + 1
+                          ),
+                        }))
+                      }
+                      aria-label="Increase quantity"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Action */}
                 <Button
                   className="mt-4 w-full"
-                  variant={lastAddedProductId === product.id ? "default" : "outline"}
-                  onClick={() => handleAddToCart(product)}
-                  disabled={product.price === null}
+                  variant={selectedVariant && lastAddedProductId === selectedVariant.sku ? "default" : "outline"}
+                  onClick={() => void handleAddToCart(product, selectedVariant)}
+                  disabled={
+                    !selectedVariant ||
+                    selectedVariant.price === null ||
+                    (selectedVariant ? addingSku === selectedVariant.sku : false)
+                  }
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  {product.price === null
+                  {!selectedVariant || selectedVariant.price === null
                     ? "Login to Add"
-                    : lastAddedProductId === product.id
+                    : addingSku === selectedVariant.sku
+                    ? "Adding..."
+                    : lastAddedProductId === selectedVariant.sku
                     ? "Added"
                     : "Add to Cart"}
                 </Button>
+                    </>
+                  );
+                })()}
               </div>
             ))}
           </div>
