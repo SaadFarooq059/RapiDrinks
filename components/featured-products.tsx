@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { motion, type PanInfo } from "framer-motion";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
-import { isAuthenticated } from "@/lib/dummy-auth";
+import { AUTH_UPDATED_EVENT, isAuthenticated } from "@/lib/dummy-auth";
+import { addToCart } from "@/lib/cart";
 
 type FeaturedProduct = {
   id: number;
@@ -64,9 +65,11 @@ export function FeaturedProducts() {
     checkAuth();
     window.addEventListener("resize", handleResize);
     window.addEventListener("storage", checkAuth);
+    window.addEventListener(AUTH_UPDATED_EVENT, checkAuth);
     return () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("storage", checkAuth);
+      window.removeEventListener(AUTH_UPDATED_EVENT, checkAuth);
     };
   }, []);
 
@@ -84,12 +87,16 @@ export function FeaturedProducts() {
     if (info.offset.x < -swipeThreshold) handleNext();
   };
 
-  const handleAddToCart = (product: FeaturedProduct) => {
-    if (!authed || typeof window === "undefined") return;
-    const existing = window.localStorage.getItem("rapid_drinks_cart");
-    const cart: Array<{ id: number; name: string; price: number }> = existing ? JSON.parse(existing) : [];
-    cart.push({ id: product.id, name: product.name, price: product.price });
-    window.localStorage.setItem("rapid_drinks_cart", JSON.stringify(cart));
+  const handleAddToCart = async (product: FeaturedProduct) => {
+    if (!authed) return;
+    await addToCart({
+      id: String(product.id),
+      name: product.name,
+      categoryLabel: "Featured",
+      price: product.price,
+      minOrder: 1,
+      quantity: 1,
+    });
   };
 
   return (

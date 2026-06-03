@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import SplashScreen from "@/components/splash-screen";
+import { AuthBootstrap } from "@/components/auth-bootstrap";
 import "./globals.css";
 
 const playfair = Playfair_Display({
@@ -47,6 +48,7 @@ export default function RootLayout({
       className={`${playfair.variable} ${inter.variable} bg-background`}
     >
       <body className="font-sans antialiased">
+        <AuthBootstrap />
         <SplashScreen />
         {children}
         {process.env.NODE_ENV === "production" && <Analytics />}

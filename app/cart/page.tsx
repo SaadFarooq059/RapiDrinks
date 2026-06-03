@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Minus, Plus, ShoppingCart, Trash2, Lock } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -16,30 +17,50 @@ import {
   type CartItem,
 } from "@/lib/cart";
 import { AUTH_UPDATED_EVENT, isAuthenticated } from "@/lib/dummy-auth";
+import { apiRequest } from "@/lib/api-client";
 
 export default function CartPage() {
+  const router = useRouter();
   const [items, setItems] = useState<CartItem[]>([]);
   const [authed, setAuthed] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutDone, setCheckoutDone] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
-    const syncState = () => {
-      setItems(getCartItems());
-      setAuthed(isAuthenticated());
+    const syncState = async () => {
+      const authenticated = isAuthenticated();
+      setAuthed(authenticated);
+
+      if (!authenticated) {
+        setItems([]);
+        router.replace(`/signin?next=${encodeURIComponent("/cart")}`);
+        return;
+      }
+
+      try {
+        const cartItems = await getCartItems();
+        setItems(cartItems);
+      } catch (error) {
+        setActionError(error instanceof Error ? error.message : "Unable to load cart.");
+      }
     };
 
-    syncState();
-    window.addEventListener(CART_UPDATED_EVENT, syncState);
-    window.addEventListener(AUTH_UPDATED_EVENT, syncState);
-    window.addEventListener("storage", syncState);
+    const syncStateSafe = () => {
+      void syncState();
+    };
+
+    syncStateSafe();
+    window.addEventListener(CART_UPDATED_EVENT, syncStateSafe);
+    window.addEventListener(AUTH_UPDATED_EVENT, syncStateSafe);
+    window.addEventListener("storage", syncStateSafe);
 
     return () => {
-      window.removeEventListener(CART_UPDATED_EVENT, syncState);
-      window.removeEventListener(AUTH_UPDATED_EVENT, syncState);
-      window.removeEventListener("storage", syncState);
+      window.removeEventListener(CART_UPDATED_EVENT, syncStateSafe);
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncStateSafe);
+      window.removeEventListener("storage", syncStateSafe);
     };
-  }, []);
+  }, [router]);
 
   const subtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -51,16 +72,51 @@ export default function CartPage() {
     [items]
   );
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!authed || items.length === 0 || isCheckingOut) return;
+    setActionError(null);
     setCheckoutDone(false);
     setIsCheckingOut(true);
 
-    window.setTimeout(() => {
-      clearCart();
-      setIsCheckingOut(false);
+    try {
+      await apiRequest("/orders/checkout", {
+        method: "POST",
+        auth: true,
+        body: {
+          notes: "",
+          paymentMethod: "invoice",
+        },
+      });
+      await clearCart();
+      setItems([]);
       setCheckoutDone(true);
-    }, 1000);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Checkout failed.");
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
+
+  const handleRemoveItem = async (id: string) => {
+    setActionError(null);
+    try {
+      await removeFromCart(id);
+      const cartItems = await getCartItems();
+      setItems(cartItems);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to update cart.");
+    }
+  };
+
+  const handleUpdateQuantity = async (id: string, quantity: number) => {
+    setActionError(null);
+    try {
+      await updateCartItemQuantity(id, quantity);
+      const cartItems = await getCartItems();
+      setItems(cartItems);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to update quantity.");
+    }
   };
 
   return (
@@ -108,7 +164,7 @@ export default function CartPage() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => void handleRemoveItem(item.id)}
                         aria-label="Remove item"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -122,7 +178,7 @@ export default function CartPage() {
                           size="icon"
                           className="rounded-full"
                           onClick={() =>
-                            updateCartItemQuantity(item.id, Math.max(1, item.quantity - 1))
+                            void handleUpdateQuantity(item.id, Math.max(1, item.quantity - 1))
                           }
                           aria-label="Decrease quantity"
                         >
@@ -135,7 +191,7 @@ export default function CartPage() {
                           variant="ghost"
                           size="icon"
                           className="rounded-full"
-                          onClick={() => updateCartItemQuantity(item.id, item.quantity + 1)}
+                          onClick={() => void handleUpdateQuantity(item.id, item.quantity + 1)}
                           aria-label="Increase quantity"
                         >
                           <Plus className="h-4 w-4" />
@@ -207,6 +263,7 @@ export default function CartPage() {
                   Order placed successfully.
                 </p>
               )}
+              {actionError && <p className="mt-3 text-xs text-destructive">{actionError}</p>}
             </aside>
           </div>
         </section>

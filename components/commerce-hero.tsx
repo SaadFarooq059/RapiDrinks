@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { motion } from "framer-motion";
-import { clearAuthUser, isAuthenticated } from "@/lib/dummy-auth";
+import { isAuthenticated, signOut } from "@/lib/dummy-auth";
 
 const categories = [
   {
@@ -57,8 +57,8 @@ export function CommerceHero() {
     setAuthed(isAuthenticated());
   }, []);
 
-  const handleLogout = () => {
-    clearAuthUser();
+  const handleLogout = async () => {
+    await signOut();
     setAuthed(false);
     window.location.href = "/";
   };

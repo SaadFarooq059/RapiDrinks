@@ -15,8 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   AUTH_UPDATED_EVENT,
-  clearAuthUser,
   isAuthenticated,
+  signOut,
 } from "@/lib/dummy-auth";
 import { CART_UPDATED_EVENT, getCartCount } from "@/lib/cart";
 
@@ -32,25 +32,38 @@ export function Header() {
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
-    const syncHeaderState = () => {
+    const syncHeaderState = async () => {
       setAuthed(isAuthenticated());
-      setCartCount(getCartCount());
+      if (!isAuthenticated()) {
+        setCartCount(0);
+        return;
+      }
+      try {
+        const count = await getCartCount();
+        setCartCount(count);
+      } catch {
+        setCartCount(0);
+      }
     };
 
-    syncHeaderState();
-    window.addEventListener(AUTH_UPDATED_EVENT, syncHeaderState);
-    window.addEventListener(CART_UPDATED_EVENT, syncHeaderState);
-    window.addEventListener("storage", syncHeaderState);
+    const syncHeaderStateSafe = () => {
+      void syncHeaderState();
+    };
+
+    syncHeaderStateSafe();
+    window.addEventListener(AUTH_UPDATED_EVENT, syncHeaderStateSafe);
+    window.addEventListener(CART_UPDATED_EVENT, syncHeaderStateSafe);
+    window.addEventListener("storage", syncHeaderStateSafe);
 
     return () => {
-      window.removeEventListener(AUTH_UPDATED_EVENT, syncHeaderState);
-      window.removeEventListener(CART_UPDATED_EVENT, syncHeaderState);
-      window.removeEventListener("storage", syncHeaderState);
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncHeaderStateSafe);
+      window.removeEventListener(CART_UPDATED_EVENT, syncHeaderStateSafe);
+      window.removeEventListener("storage", syncHeaderStateSafe);
     };
   }, []);
 
-  const handleLogout = () => {
-    clearAuthUser();
+  const handleLogout = async () => {
+    await signOut();
     setAuthed(false);
     window.location.href = "/";
   };

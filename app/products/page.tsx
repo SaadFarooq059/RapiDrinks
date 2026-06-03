@@ -18,16 +18,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AUTH_UPDATED_EVENT, isAuthenticated } from "@/lib/dummy-auth";
 import { CART_UPDATED_EVENT, addToCart, getCartCount } from "@/lib/cart";
+import { apiRequest } from "@/lib/api-client";
 
 type Product = {
   id: string;
   name: string;
   category: string;
   categoryLabel: string;
-  price: number;
+  price: number | null;
   minOrder: number;
   status: string;
   tags: string[];
+  imageUrl?: string;
 };
 
 type Category = {
@@ -36,14 +38,21 @@ type Category = {
   icon: typeof Beer | typeof Martini | typeof GlassWater | null;
 };
 
-type RawProduct = {
-  "Article Number": string;
-  Barcode: string | null;
-  Name: string;
-  Category: string;
-  "Sale Price": number;
-  "Crates Per Pallet": number;
-  Status: string;
+type ApiCategory = {
+  id: string;
+  slug: string;
+  name: string;
+  label: string;
+};
+
+type ProductsResponse = {
+  items: Product[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+  };
 };
 
 const PRODUCTS_PER_PAGE = 12;
@@ -55,10 +64,6 @@ const CATEGORY_ALIAS: Record<string, string> = {
   "non-alcoholic": "soft-drinks",
 };
 
-function slugifyCategory(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, "-");
-}
-
 function getCategoryIcon(categoryLabel: string): Category["icon"] {
   const normalized = categoryLabel.toLowerCase();
   if (normalized.includes("beer")) return Beer;
@@ -66,53 +71,77 @@ function getCategoryIcon(categoryLabel: string): Category["icon"] {
   return GlassWater;
 }
 
-function parseProductsJson(items: RawProduct[]): Product[] {
-  return items
-    .filter((item) => item?.Name && item?.Category && item?.["Article Number"])
-    .map((item) => {
-      const categoryLabel = item.Category.trim();
-      return {
-        id: item["Article Number"].trim(),
-        name: item.Name.trim(),
-        category: slugifyCategory(categoryLabel),
-        categoryLabel,
-        price: Number.isFinite(item["Sale Price"]) ? item["Sale Price"] : 0,
-        minOrder:
-          Number.isFinite(item["Crates Per Pallet"]) && item["Crates Per Pallet"] > 0
-            ? item["Crates Per Pallet"]
-            : 1,
-        status: item.Status?.trim() || "active",
-        tags: [categoryLabel, item.Status?.trim() || "active"],
-      };
-    });
-}
-
 export default function ProductsPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([
+    { id: "all", name: "All Products", icon: null },
+  ]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canViewPrices, setCanViewPrices] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [lastAddedProductId, setLastAddedProductId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [cartActionError, setCartActionError] = useState<string | null>(null);
 
   useEffect(() => {
-    const syncAuthAndCart = () => {
+    const syncAuthAndCart = async () => {
       setCanViewPrices(isAuthenticated());
-      setCartCount(getCartCount());
+      if (!isAuthenticated()) {
+        setCartCount(0);
+        return;
+      }
+      try {
+        const count = await getCartCount();
+        setCartCount(count);
+      } catch {
+        setCartCount(0);
+      }
     };
 
-    syncAuthAndCart();
-    window.addEventListener(AUTH_UPDATED_EVENT, syncAuthAndCart);
-    window.addEventListener(CART_UPDATED_EVENT, syncAuthAndCart);
-    window.addEventListener("storage", syncAuthAndCart);
+    const syncAuthAndCartSafe = () => {
+      void syncAuthAndCart();
+    };
+
+    syncAuthAndCartSafe();
+    window.addEventListener(AUTH_UPDATED_EVENT, syncAuthAndCartSafe);
+    window.addEventListener(CART_UPDATED_EVENT, syncAuthAndCartSafe);
+    window.addEventListener("storage", syncAuthAndCartSafe);
 
     return () => {
-      window.removeEventListener(AUTH_UPDATED_EVENT, syncAuthAndCart);
-      window.removeEventListener(CART_UPDATED_EVENT, syncAuthAndCart);
-      window.removeEventListener("storage", syncAuthAndCart);
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncAuthAndCartSafe);
+      window.removeEventListener(CART_UPDATED_EVENT, syncAuthAndCartSafe);
+      window.removeEventListener("storage", syncAuthAndCartSafe);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCategories = async () => {
+      try {
+        const response = await apiRequest<{ items: ApiCategory[] }>("/categories");
+        if (!isMounted) return;
+        const mapped = response.items.map((category) => ({
+          id: category.id || category.slug,
+          name: category.label || category.name,
+          icon: getCategoryIcon(category.label || category.name),
+        }));
+        setCategories([{ id: "all", name: "All Products", icon: null }, ...mapped]);
+      } catch (error) {
+        if (!isMounted) return;
+        setCategories([{ id: "all", name: "All Products", icon: null }]);
+        setLoadError(error instanceof Error ? error.message : "Unable to load categories.");
+      }
+    };
+
+    void loadCategories();
+    return () => {
+      isMounted = false;
     };
   }, []);
 
@@ -120,23 +149,29 @@ export default function ProductsPage() {
     let isMounted = true;
 
     const loadProducts = async () => {
+      setIsLoading(true);
+      setLoadError(null);
       try {
-        setIsLoading(true);
-        const response = await fetch("/products_export_2026-05-22.json");
-        if (!response.ok) {
-          throw new Error("Failed to load product catalog file.");
+        const params = new URLSearchParams();
+        params.set("page", String(currentPage));
+        params.set("limit", String(PRODUCTS_PER_PAGE));
+        if (searchQuery.trim()) {
+          params.set("search", searchQuery.trim());
         }
-        const jsonData = (await response.json()) as RawProduct[];
-        const parsed = parseProductsJson(jsonData);
-        if (isMounted) {
-          setProducts(parsed);
-          setLoadError(null);
+        if (activeCategory !== "all") {
+          params.set("category", activeCategory);
         }
+        const response = await apiRequest<ProductsResponse>(`/products?${params.toString()}`);
+        if (!isMounted) return;
+        setProducts(response.items);
+        setTotalItems(response.pagination.totalItems);
+        setTotalPages(Math.max(1, response.pagination.totalPages));
       } catch (error) {
-        if (isMounted) {
-          setLoadError(error instanceof Error ? error.message : "Unable to load products.");
-          setProducts([]);
-        }
+        if (!isMounted) return;
+        setLoadError(error instanceof Error ? error.message : "Unable to load products.");
+        setProducts([]);
+        setTotalItems(0);
+        setTotalPages(1);
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -144,27 +179,11 @@ export default function ProductsPage() {
       }
     };
 
-    loadProducts();
+    void loadProducts();
     return () => {
       isMounted = false;
     };
-  }, []);
-
-  const categories = useMemo<Category[]>(() => {
-    const dynamicCategories: Category[] = Array.from(
-      new Map(
-        products.map((product) => [
-          product.category,
-          {
-            id: product.category,
-            name: product.categoryLabel,
-            icon: getCategoryIcon(product.categoryLabel),
-          },
-        ])
-      ).values()
-    );
-    return [{ id: "all", name: "All Products", icon: null }, ...dynamicCategories];
-  }, [products]);
+  }, [activeCategory, currentPage, searchQuery]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -176,24 +195,6 @@ export default function ProductsPage() {
       setActiveCategory(fromUrl);
     }
   }, [categories]);
-
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchesCategory = activeCategory === "all" || product.category === activeCategory;
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        product.name.toLowerCase().includes(query) ||
-        product.categoryLabel.toLowerCase().includes(query);
-      return matchesCategory && matchesSearch;
-    });
-  }, [activeCategory, products, searchQuery]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE));
-
-  const paginatedProducts = useMemo(() => {
-    const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
-    return filteredProducts.slice(start, start + PRODUCTS_PER_PAGE);
-  }, [currentPage, filteredProducts]);
 
   const visiblePages = useMemo(() => {
     const start = Math.max(1, currentPage - 2);
@@ -209,22 +210,23 @@ export default function ProductsPage() {
     setCurrentPage(1);
   }, [activeCategory, searchQuery]);
 
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
+  const handleAddToCart = async (product: Product) => {
+    if (!canViewPrices || product.price === null) return;
+    setCartActionError(null);
+    try {
+      await addToCart({
+        id: product.id,
+        name: product.name,
+        categoryLabel: product.categoryLabel,
+        price: product.price,
+        minOrder: product.minOrder,
+        quantity: product.minOrder,
+      });
+      setLastAddedProductId(product.id);
+      window.setTimeout(() => setLastAddedProductId(null), 1200);
+    } catch (error) {
+      setCartActionError(error instanceof Error ? error.message : "Unable to add to cart.");
     }
-  }, [currentPage, totalPages]);
-
-  const handleAddToCart = (product: Product) => {
-    addToCart({
-      id: product.id,
-      name: product.name,
-      categoryLabel: product.categoryLabel,
-      price: product.price,
-      minOrder: product.minOrder,
-    });
-    setLastAddedProductId(product.id);
-    window.setTimeout(() => setLastAddedProductId(null), 1200);
   };
 
   return (
@@ -301,10 +303,9 @@ export default function ProductsPage() {
           {/* Product Count */}
           <p className="mt-8 text-sm text-muted-foreground">
             Showing{" "}
-            {filteredProducts.length === 0 ? 0 : (currentPage - 1) * PRODUCTS_PER_PAGE + 1}
+            {totalItems === 0 ? 0 : (currentPage - 1) * PRODUCTS_PER_PAGE + 1}
             -
-            {Math.min(currentPage * PRODUCTS_PER_PAGE, filteredProducts.length)} of{" "}
-            {filteredProducts.length} matching products ({products.length} total)
+            {Math.min(currentPage * PRODUCTS_PER_PAGE, totalItems)} of {totalItems} matching products
           </p>
           {!canViewPrices && (
             <div className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -331,6 +332,11 @@ export default function ProductsPage() {
               <Link href="/cart">Open Cart</Link>
             </Button>
           </div>
+          {cartActionError && (
+            <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {cartActionError}
+            </div>
+          )}
 
           {isLoading && (
             <div className="mt-6 text-sm text-muted-foreground">
@@ -346,7 +352,7 @@ export default function ProductsPage() {
 
           {/* Product Grid */}
           <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {paginatedProducts.map((product) => (
+            {products.map((product) => (
               <div
                 key={product.id}
                 className="group rounded-2xl bg-card p-6 shadow-sm transition-all hover:shadow-md"
@@ -387,7 +393,7 @@ export default function ProductsPage() {
 
                 <p className="text-xs text-muted-foreground">Min. order: {product.minOrder} crates</p>
                 <div className="mt-3">
-                  {canViewPrices ? (
+                  {product.price !== null ? (
                     <p className="text-xl font-bold text-foreground">EUR {product.price.toFixed(2)}</p>
                   ) : (
                     <p className="text-sm font-medium text-muted-foreground inline-flex items-center gap-2">
@@ -404,15 +410,20 @@ export default function ProductsPage() {
                   className="mt-4 w-full"
                   variant={lastAddedProductId === product.id ? "default" : "outline"}
                   onClick={() => handleAddToCart(product)}
+                  disabled={product.price === null}
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  {lastAddedProductId === product.id ? "Added" : "Add to Cart"}
+                  {product.price === null
+                    ? "Login to Add"
+                    : lastAddedProductId === product.id
+                    ? "Added"
+                    : "Add to Cart"}
                 </Button>
               </div>
             ))}
           </div>
 
-          {!isLoading && filteredProducts.length > 0 && totalPages > 1 && (
+          {!isLoading && products.length > 0 && totalPages > 1 && (
             <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
               <Button
                 size="sm"
@@ -468,7 +479,7 @@ export default function ProductsPage() {
           )}
 
           {/* No Results */}
-          {!isLoading && filteredProducts.length === 0 && (
+          {!isLoading && products.length === 0 && (
             <div className="mt-12 text-center">
               <p className="text-muted-foreground">
                 No products found. Try adjusting your search or filters.

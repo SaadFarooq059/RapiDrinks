@@ -1,4 +1,5 @@
-export const CART_STORAGE_KEY = "rapid_drinks_cart_items";
+import { apiRequest } from "@/lib/api-client";
+
 export const CART_UPDATED_EVENT = "rapid-drinks-cart-updated";
 
 export type CartItem = {
@@ -8,106 +9,108 @@ export type CartItem = {
   price: number;
   minOrder: number;
   quantity: number;
+  imageUrl?: string;
 };
 
-function sanitizeCartItems(raw: unknown): CartItem[] {
-  if (!Array.isArray(raw)) return [];
+type CartResponseItem = {
+  productId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  imageUrl?: string;
+  minOrder?: number;
+};
 
-  return raw
-    .map((entry) => {
-      if (!entry || typeof entry !== "object") return null;
-      const item = entry as Partial<CartItem>;
-      if (!item.id || !item.name || !item.categoryLabel) return null;
-
-      return {
-        id: String(item.id),
-        name: String(item.name),
-        categoryLabel: String(item.categoryLabel),
-        price: Number.isFinite(item.price) ? Number(item.price) : 0,
-        minOrder:
-          Number.isFinite(item.minOrder) && Number(item.minOrder) > 0
-            ? Math.floor(Number(item.minOrder))
-            : 1,
-        quantity:
-          Number.isFinite(item.quantity) && Number(item.quantity) > 0
-            ? Math.floor(Number(item.quantity))
-            : 1,
-      };
-    })
-    .filter((item): item is CartItem => item !== null);
-}
+type CartApiResponse = {
+  items: CartResponseItem[];
+  totals: {
+    subtotal: number;
+    totalItems: number;
+    totalQuantity: number;
+  };
+};
 
 function emitCartUpdated(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(CART_UPDATED_EVENT));
 }
 
-export function getCartItems(): CartItem[] {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
-    if (!raw) return [];
-    return sanitizeCartItems(JSON.parse(raw));
-  } catch {
-    return [];
-  }
+function mapCartItem(item: CartResponseItem): CartItem {
+  return {
+    id: item.productId,
+    name: item.name,
+    categoryLabel: "Product",
+    price: item.unitPrice,
+    minOrder: item.minOrder && item.minOrder > 0 ? item.minOrder : 1,
+    quantity: item.quantity > 0 ? item.quantity : 1,
+    imageUrl: item.imageUrl,
+  };
 }
 
-export function setCartItems(items: CartItem[]): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-  emitCartUpdated();
+export async function getCart(): Promise<CartApiResponse> {
+  return apiRequest<CartApiResponse>("/cart", {
+    auth: true,
+  });
 }
 
-export function addToCart(
+export async function getCartItems(): Promise<CartItem[]> {
+  const response = await getCart();
+  return response.items.map(mapCartItem);
+}
+
+export async function addToCart(
   item: Omit<CartItem, "quantity"> & { quantity?: number }
-): void {
-  const existing = getCartItems();
-  const quantityToAdd =
+): Promise<void> {
+  const quantity =
     Number.isFinite(item.quantity) && Number(item.quantity) > 0
       ? Math.floor(Number(item.quantity))
       : Math.max(1, Math.floor(item.minOrder || 1));
 
-  const idx = existing.findIndex((entry) => entry.id === item.id);
-  if (idx >= 0) {
-    existing[idx] = {
-      ...existing[idx],
-      quantity: existing[idx].quantity + quantityToAdd,
-    };
-  } else {
-    existing.push({
-      ...item,
-      quantity: quantityToAdd,
-      minOrder: Math.max(1, Math.floor(item.minOrder || 1)),
-      price: Number.isFinite(item.price) ? Number(item.price) : 0,
-    });
-  }
-
-  setCartItems(existing);
+  await apiRequest("/cart/items", {
+    method: "POST",
+    auth: true,
+    body: {
+      productId: item.id,
+      quantity,
+    },
+  });
+  emitCartUpdated();
 }
 
-export function updateCartItemQuantity(id: string, quantity: number): void {
-  const existing = getCartItems();
-  const next = existing
-    .map((item) => (item.id === id ? { ...item, quantity: Math.floor(quantity) } : item))
-    .filter((item) => item.quantity > 0);
-  setCartItems(next);
+export async function updateCartItemQuantity(id: string, quantity: number): Promise<void> {
+  await apiRequest(`/cart/items/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    auth: true,
+    body: {
+      quantity: Math.max(1, Math.floor(quantity)),
+    },
+  });
+  emitCartUpdated();
 }
 
-export function removeFromCart(id: string): void {
-  const existing = getCartItems();
-  setCartItems(existing.filter((item) => item.id !== id));
+export async function removeFromCart(id: string): Promise<void> {
+  await apiRequest(`/cart/items/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    auth: true,
+  });
+  emitCartUpdated();
 }
 
-export function clearCart(): void {
-  setCartItems([]);
+export async function clearCart(): Promise<void> {
+  await apiRequest("/cart", {
+    method: "DELETE",
+    auth: true,
+  });
+  emitCartUpdated();
 }
 
-export function getCartCount(): number {
-  return getCartItems().reduce((sum, item) => sum + item.quantity, 0);
+export async function getCartCount(): Promise<number> {
+  const response = await getCart();
+  return response.totals.totalQuantity;
 }
 
-export function getCartSubtotal(): number {
-  return getCartItems().reduce((sum, item) => sum + item.price * item.quantity, 0);
+export async function getCartSubtotal(): Promise<number> {
+  const response = await getCart();
+  return response.totals.subtotal;
 }

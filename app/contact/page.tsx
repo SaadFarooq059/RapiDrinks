@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { apiRequest } from "@/lib/api-client";
 
 const businessTypes = [
   "Restaurant",
@@ -28,11 +29,21 @@ export default function ContactPage() {
     message: "",
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate form submission
-    setIsSubmitted(true);
+    setError(null);
+
+    try {
+      await apiRequest("/contact/inquiries", {
+        method: "POST",
+        body: formState,
+      });
+      setIsSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send your inquiry.");
+    }
   };
 
   return (
@@ -133,6 +144,11 @@ export default function ContactPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-6">
+                  {error && (
+                    <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                      {error}
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="name">Full Name *</Label>

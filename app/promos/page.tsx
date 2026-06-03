@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Gift, CalendarDays, PackageCheck, Tag } from "lucide-react";
 import { Header } from "@/components/header";
@@ -5,26 +8,55 @@ import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { PromosHero } from "@/components/promos-hero";
 import { SlideToUnlock } from "@/components/ui/reward-card";
+import { apiRequest } from "@/lib/api-client";
 
-const promos = [
-  {
-    title: "Case Discount - Belgian Beers",
-    description: "Save more on volume orders across selected beer crates.",
-    validity: "Valid through June 30, 2026",
-  },
-  {
-    title: "Mixers Bundle Offer",
-    description: "Bundle selected mixers and get better wholesale margins.",
-    validity: "Valid through July 15, 2026",
-  },
-  {
-    title: "Soft Drinks Launch Promo",
-    description: "Special introductory rates on newly added soft drinks.",
-    validity: "Limited stock promo",
-  },
-];
+type Promo = {
+  id?: string;
+  title: string;
+  description: string;
+  validity: string;
+};
 
 export default function PromosPage() {
+  const [promos, setPromos] = useState<Promo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPromos = async () => {
+      try {
+        const response = await apiRequest<{ items: Array<Record<string, unknown>> }>("/promos");
+        if (!isMounted) return;
+        const mapped = response.items.map((promo, idx) => ({
+          id: String(promo.id ?? idx),
+          title: String(promo.title ?? "Promo"),
+          description: String(promo.description ?? ""),
+          validity: String(
+            promo.validity ??
+              promo.validUntil ??
+              promo.expiresAt ??
+              "Limited stock promo"
+          ),
+        }));
+        setPromos(mapped);
+      } catch (err) {
+        if (!isMounted) return;
+        setError(err instanceof Error ? err.message : "Unable to load promos.");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadPromos();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="relative w-full bg-background min-h-screen font-sans overflow-x-hidden">
       <main className="relative z-10 w-full bg-background rounded-b-3xl shadow-2xl">
@@ -34,9 +66,13 @@ export default function PromosPage() {
 
         <section className="py-12">
           <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 sm:px-6 md:grid-cols-2 lg:grid-cols-3 lg:px-8">
-            {promos.map((promo) => (
+            {isLoading && <p className="text-sm text-muted-foreground">Loading promos...</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            {!isLoading &&
+              !error &&
+              promos.map((promo) => (
               <SlideToUnlock
-                key={promo.title}
+                key={promo.id || promo.title}
                 sliderText="Slide to unlock this promo"
                 unlockedContent={
                   <div className="mt-6 flex h-14 w-full items-center justify-between rounded-full bg-primary px-3 text-primary-foreground shadow-md">
