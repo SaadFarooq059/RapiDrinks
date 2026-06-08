@@ -20,19 +20,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AUTH_UPDATED_EVENT, isAuthenticated } from "@/lib/dummy-auth";
 import { CART_UPDATED_EVENT, addToCart, getCartCount } from "@/lib/cart";
-import { apiRequest } from "@/lib/api-client";
+import { apiRequest, resolveImageUrl } from "@/lib/api-client";
 
 type Category = {
   id: string;
   name: string;
   icon: typeof Beer | typeof Martini | typeof GlassWater | null;
-};
-
-type ApiCategory = {
-  id: string;
-  slug: string;
-  name: string;
-  label: string;
 };
 
 type ProductsResponse = {
@@ -68,18 +61,36 @@ type ProductGroup = {
 const PRODUCTS_PER_PAGE = 12;
 
 const CATEGORY_ALIAS: Record<string, string> = {
-  wines: "soft-drinks",
-  spirits: "mixers",
+  wines: "wine",
   beers: "beer",
+  "soft drinks": "soft-drinks",
   "non-alcoholic": "soft-drinks",
 };
 
-function getCategoryIcon(categoryLabel: string): Category["icon"] {
-  const normalized = categoryLabel.toLowerCase();
-  if (normalized.includes("beer")) return Beer;
-  if (normalized.includes("mixer")) return Martini;
-  return GlassWater;
-}
+const SOFT_DRINKS_GROUP_ID = "soft-drinks-group";
+
+const SOFT_DRINK_SUBCATEGORIES: { slug: string; name: string }[] = [
+  { slug: "soft-drinks", name: "Soft Drinks" },
+  { slug: "energy-drinks", name: "Energy Drinks" },
+  { slug: "flavoured-water", name: "Flavoured Water" },
+  { slug: "ice-coffee", name: "Ice Coffee" },
+  { slug: "ice-tea", name: "Ice Tea" },
+  { slug: "juice", name: "Juice" },
+  { slug: "milk-drinks", name: "Milk Drinks" },
+  { slug: "water", name: "Water" },
+];
+
+const SOFT_DRINK_SLUGS = SOFT_DRINK_SUBCATEGORIES.map((sub) => sub.slug);
+
+const DEFAULT_SOFT_DRINK_SUB = "soft-drinks";
+
+const MAIN_CATEGORIES: Category[] = [
+  { id: "all", name: "All Products", icon: null },
+  { id: "beer", name: "Beer", icon: Beer },
+  { id: "wine", name: "Wine", icon: GlassWater },
+  { id: "spirits", name: "Spirits", icon: Martini },
+  { id: SOFT_DRINKS_GROUP_ID, name: "Soft Drinks", icon: GlassWater },
+];
 
 function toVariantLabel(
   variant: Pick<ProductVariant, "packType" | "unitsPerPack" | "sizeLabel">
@@ -91,15 +102,13 @@ function toVariantLabel(
 }
 
 export default function ProductsPage() {
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeMain, setActiveMain] = useState("all");
+  const [activeSoftSub, setActiveSoftSub] = useState(DEFAULT_SOFT_DRINK_SUB);
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<ProductGroup[]>([]);
   const [selectedVariantByProduct, setSelectedVariantByProduct] = useState<
     Record<string, string>
   >({});
-  const [categories, setCategories] = useState<Category[]>([
-    { id: "all", name: "All Products", icon: null },
-  ]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canViewPrices, setCanViewPrices] = useState(false);
@@ -111,6 +120,12 @@ export default function ProductsPage() {
   const [cartActionError, setCartActionError] = useState<string | null>(null);
   const [quantityBySku, setQuantityBySku] = useState<Record<string, number>>({});
   const [addingSku, setAddingSku] = useState<string | null>(null);
+
+  const effectiveCategory = useMemo(() => {
+    if (activeMain === "all") return null;
+    if (activeMain === SOFT_DRINKS_GROUP_ID) return activeSoftSub;
+    return activeMain;
+  }, [activeMain, activeSoftSub]);
 
   useEffect(() => {
     const syncAuthAndCart = async () => {
@@ -146,32 +161,6 @@ export default function ProductsPage() {
   useEffect(() => {
     let isMounted = true;
 
-    const loadCategories = async () => {
-      try {
-        const response = await apiRequest<{ items: ApiCategory[] }>("/categories");
-        if (!isMounted) return;
-        const mapped = response.items.map((category) => ({
-          id: category.id || category.slug,
-          name: category.label || category.name,
-          icon: getCategoryIcon(category.label || category.name),
-        }));
-        setCategories([{ id: "all", name: "All Products", icon: null }, ...mapped]);
-      } catch (error) {
-        if (!isMounted) return;
-        setCategories([{ id: "all", name: "All Products", icon: null }]);
-        setLoadError(error instanceof Error ? error.message : "Unable to load categories.");
-      }
-    };
-
-    void loadCategories();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
     const loadProducts = async () => {
       setIsLoading(true);
       setLoadError(null);
@@ -182,8 +171,8 @@ export default function ProductsPage() {
         if (searchQuery.trim()) {
           params.set("search", searchQuery.trim());
         }
-        if (activeCategory !== "all") {
-          params.set("category", activeCategory);
+        if (effectiveCategory) {
+          params.set("category", effectiveCategory);
         }
         const response = await apiRequest<ProductsResponse>(`/products?${params.toString()}`);
         if (!isMounted) return;
@@ -230,18 +219,26 @@ export default function ProductsPage() {
     return () => {
       isMounted = false;
     };
-  }, [activeCategory, currentPage, searchQuery]);
+  }, [effectiveCategory, currentPage, searchQuery]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const fromUrlRaw = new URLSearchParams(window.location.search).get("category");
     if (!fromUrlRaw) return;
-    const fromUrl = CATEGORY_ALIAS[fromUrlRaw.toLowerCase()] || fromUrlRaw.toLowerCase();
-    const exists = categories.some((category) => category.id === fromUrl);
-    if (exists) {
-      setActiveCategory(fromUrl);
+    const normalized = fromUrlRaw.toLowerCase().trim();
+    const target = CATEGORY_ALIAS[normalized] || normalized;
+
+    if (SOFT_DRINK_SLUGS.includes(target)) {
+      setActiveMain(SOFT_DRINKS_GROUP_ID);
+      setActiveSoftSub(target);
+      return;
     }
-  }, [categories]);
+
+    const mainMatch = MAIN_CATEGORIES.find((category) => category.id === target);
+    if (mainMatch) {
+      setActiveMain(mainMatch.id);
+    }
+  }, []);
 
   const visiblePages = useMemo(() => {
     const start = Math.max(1, currentPage - 2);
@@ -255,7 +252,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeCategory, searchQuery]);
+  }, [effectiveCategory, searchQuery]);
 
   const handleAddToCart = async (product: ProductGroup, variant: ProductVariant | null) => {
     if (!canViewPrices || !variant || variant.price === null) return;
@@ -333,12 +330,12 @@ export default function ProductsPage() {
           {/* Category Filters */}
           <div className="flex flex-wrap items-center gap-3">
             <Filter className="h-5 w-5 text-muted-foreground" />
-            {categories.map((category) => (
+            {MAIN_CATEGORIES.map((category) => (
               <button
                 key={category.id}
-                onClick={() => setActiveCategory(category.id)}
+                onClick={() => setActiveMain(category.id)}
                 className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                  activeCategory === category.id
+                  activeMain === category.id
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 }`}
@@ -348,6 +345,25 @@ export default function ProductsPage() {
               </button>
             ))}
           </div>
+
+          {/* Soft Drinks Sub-categories */}
+          {activeMain === SOFT_DRINKS_GROUP_ID && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+              {SOFT_DRINK_SUBCATEGORIES.map((sub) => (
+                <button
+                  key={sub.slug}
+                  onClick={() => setActiveSoftSub(sub.slug)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    activeSoftSub === sub.slug
+                      ? "bg-primary/15 text-primary ring-1 ring-primary/40"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {sub.name}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Product Count */}
           <p className="mt-8 text-sm text-muted-foreground">
@@ -416,16 +432,12 @@ export default function ProductsPage() {
                 {/* Product Image Placeholder */}
                 <div className="relative aspect-square rounded-xl bg-muted flex items-center justify-center overflow-hidden">
                   {product.imageUrl ? (
-                    <>
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                      {/* Mask the supplier badge in the top-right corner */}
-                      <div className="pointer-events-none absolute right-0 top-0 h-20 w-20 bg-white" />
-                    </>
+                    <img
+                      src={resolveImageUrl(product.imageUrl)}
+                      alt={product.name}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
                   ) : (
                     <div className="text-center">
                       {product.category.includes("beer") && (

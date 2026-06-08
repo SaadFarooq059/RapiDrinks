@@ -18,9 +18,9 @@ import { isAuthenticated, signOut } from "@/lib/dummy-auth";
 
 const categories = [
   {
-    title: "Wines",
+    title: "Wine",
     image: "/1.png",
-    href: "/products?category=wines",
+    href: "/products?category=wine",
     count: "500+",
   },
   {
@@ -30,15 +30,15 @@ const categories = [
     count: "300+",
   },
   {
-    title: "Beers",
+    title: "Beer",
     image: "/3.png",
-    href: "/products?category=beers",
+    href: "/products?category=beer",
     count: "200+",
   },
   {
     title: "Soft Drinks",
     image: "/4.png",
-    href: "/products?category=non-alcoholic",
+    href: "/products?category=soft-drinks",
     count: "150+",
   },
 ];

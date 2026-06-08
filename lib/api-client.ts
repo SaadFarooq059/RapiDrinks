@@ -1,5 +1,12 @@
 const API_BASE_URL = "https://api.rapiddrinks.be/api";
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
 const AUTH_TOKEN_STORAGE_KEY = "rapid_drinks_auth_token";
+
+export function resolveImageUrl(path?: string | null): string | undefined {
+  if (!path) return undefined;
+  if (/^https?:\/\//i.test(path) || path.startsWith("data:")) return path;
+  return `${API_ORIGIN}${path.startsWith("/") ? "" : "/"}${path}`;
+}
 const AUTH_STORAGE_KEY = "rapid_drinks_auth_user";
 const AUTH_UPDATED_EVENT = "rapid-drinks-auth-updated";
 
