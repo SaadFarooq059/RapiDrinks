@@ -92,13 +92,44 @@ const MAIN_CATEGORIES: Category[] = [
   { id: SOFT_DRINKS_GROUP_ID, name: "Soft Drinks", icon: GlassWater },
 ];
 
+function extractVolumeSize(sizeLabel: string): string {
+  const trimmed = sizeLabel.trim();
+  if (!trimmed) return "";
+
+  const parts = trimmed.split(/\s*x\s*/i);
+  if (parts.length > 1) {
+    const volume = parts[parts.length - 1].trim();
+    if (volume) return volume;
+  }
+
+  return trimmed;
+}
+
 function toVariantLabel(
   variant: Pick<ProductVariant, "packType" | "unitsPerPack" | "sizeLabel">
 ): string {
   if (variant.packType === "crate") {
     return `Crate of ${variant.unitsPerPack}`;
   }
-  return variant.sizeLabel || "Single";
+  return "1 Piece";
+}
+
+function getProductDisplayName(
+  productName: string,
+  variant: Pick<ProductVariant, "packType" | "sizeLabel"> | null
+): string {
+  if (!variant?.sizeLabel) return productName;
+
+  const size =
+    variant.packType === "crate"
+      ? variant.sizeLabel.trim()
+      : extractVolumeSize(variant.sizeLabel);
+
+  if (!size || productName.toLowerCase().includes(size.toLowerCase())) {
+    return productName;
+  }
+
+  return `${productName} ${size}`;
 }
 
 export default function ProductsPage() {
@@ -467,8 +498,8 @@ export default function ProductsPage() {
                 </div>
 
                 {/* Product Info */}
-                <h3 className="mt-3 font-semibold text-foreground line-clamp-1">
-                  {product.name}
+                <h3 className="mt-3 font-semibold text-foreground line-clamp-2">
+                  {getProductDisplayName(product.name, selectedVariant)}
                 </h3>
                 <p className="text-sm text-muted-foreground">{product.categoryLabel}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -500,7 +531,7 @@ export default function ProductsPage() {
                   Min. order:{" "}
                   {selectedVariant
                     ? `${selectedVariant.minOrder} ${
-                        selectedVariant.packType === "crate" ? "crates" : "units"
+                        selectedVariant.packType === "crate" ? "crates" : "pieces"
                       }`
                     : "-"}
                 </p>
