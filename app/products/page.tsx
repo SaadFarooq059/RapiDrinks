@@ -17,7 +17,6 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { AUTH_UPDATED_EVENT, isAuthenticated } from "@/lib/dummy-auth";
 import { CART_UPDATED_EVENT, addToCart, getCartCount } from "@/lib/cart";
 import { apiRequest, resolveImageUrl } from "@/lib/api-client";
@@ -92,44 +91,19 @@ const MAIN_CATEGORIES: Category[] = [
   { id: SOFT_DRINKS_GROUP_ID, name: "Soft Drinks", icon: GlassWater },
 ];
 
-function extractVolumeSize(sizeLabel: string): string {
-  const trimmed = sizeLabel.trim();
-  if (!trimmed) return "";
-
-  const parts = trimmed.split(/\s*x\s*/i);
-  if (parts.length > 1) {
-    const volume = parts[parts.length - 1].trim();
-    if (volume) return volume;
-  }
-
-  return trimmed;
+function formatSizeLabel(sizeLabel: string): string {
+  return sizeLabel.trim().replace(/\s*x\s*/gi, "×");
 }
 
-function toVariantLabel(
-  variant: Pick<ProductVariant, "packType" | "unitsPerPack" | "sizeLabel">
-): string {
-  if (variant.packType === "crate") {
-    return `Crate of ${variant.unitsPerPack}`;
-  }
-  return "1 Piece";
-}
-
-function getProductDisplayName(
-  productName: string,
-  variant: Pick<ProductVariant, "packType" | "sizeLabel"> | null
-): string {
-  if (!variant?.sizeLabel) return productName;
-
-  const size =
-    variant.packType === "crate"
-      ? variant.sizeLabel.trim()
-      : extractVolumeSize(variant.sizeLabel);
-
-  if (!size || productName.toLowerCase().includes(size.toLowerCase())) {
-    return productName;
-  }
-
-  return `${productName} ${size}`;
+function getEstimatedUnitPrice(
+  variants: ProductVariant[],
+  variant: ProductVariant
+): number | null {
+  const hasSingle = variants.some((v) => v.packType === "single");
+  if (hasSingle || variant.packType !== "crate") return null;
+  if (variant.price === null || variant.price === undefined) return null;
+  if (!variant.unitsPerPack || variant.unitsPerPack <= 0) return null;
+  return variant.price / variant.unitsPerPack;
 }
 
 export default function ProductsPage() {
@@ -137,14 +111,11 @@ export default function ProductsPage() {
   const [activeSoftSub, setActiveSoftSub] = useState(DEFAULT_SOFT_DRINK_SUB);
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<ProductGroup[]>([]);
-  const [selectedVariantByProduct, setSelectedVariantByProduct] = useState<
-    Record<string, string>
-  >({});
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canViewPrices, setCanViewPrices] = useState(false);
   const [cartCount, setCartCount] = useState(0);
-  const [lastAddedProductId, setLastAddedProductId] = useState<string | null>(null);
+  const [lastAddedSku, setLastAddedSku] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -208,18 +179,6 @@ export default function ProductsPage() {
         const response = await apiRequest<ProductsResponse>(`/products?${params.toString()}`);
         if (!isMounted) return;
         setProducts(response.items);
-        setSelectedVariantByProduct((prev) => {
-          const next: Record<string, string> = { ...prev };
-          for (const product of response.items) {
-            const hasSelection =
-              next[product.id] &&
-              product.variants.some((variant) => variant.sku === next[product.id]);
-            if (!hasSelection && product.variants.length > 0) {
-              next[product.id] = product.variants[0].sku;
-            }
-          }
-          return next;
-        });
         setQuantityBySku((prev) => {
           const next = { ...prev };
           for (const product of response.items) {
@@ -285,9 +244,9 @@ export default function ProductsPage() {
     setCurrentPage(1);
   }, [effectiveCategory, searchQuery]);
 
-  const handleAddToCart = async (product: ProductGroup, variant: ProductVariant | null) => {
-    if (!canViewPrices || !variant || variant.price === null) return;
-    if (addingSku) return;
+  const handleAddToCart = async (variant: ProductVariant) => {
+    if (!canViewPrices || variant.price === null) return;
+    if (addingSku === variant.sku) return;
     setCartActionError(null);
     setAddingSku(variant.sku);
     const quantity = Math.max(variant.minOrder, quantityBySku[variant.sku] || variant.minOrder);
@@ -297,8 +256,8 @@ export default function ProductsPage() {
         minOrder: variant.minOrder,
         quantity,
       });
-      setLastAddedProductId(variant.sku);
-      window.setTimeout(() => setLastAddedProductId(null), 1200);
+      setLastAddedSku(variant.sku);
+      window.setTimeout(() => setLastAddedSku(null), 1200);
     } catch (error) {
       setCartActionError(error instanceof Error ? error.message : "Unable to add to cart.");
     } finally {
@@ -448,176 +407,157 @@ export default function ProductsPage() {
 
           {/* Product Grid */}
           <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {products.map((product) => (
-              <div key={product.id} className="group rounded-2xl bg-card p-6 shadow-sm transition-all hover:shadow-md">
-                {(() => {
-                  const variants = product.variants || [];
-                  const selectedSku = selectedVariantByProduct[product.id];
-                  const selectedVariant =
-                    variants.find((variant) => variant.sku === selectedSku) ||
-                    variants[0] ||
-                    null;
+            {products.map((product) => {
+              const variants = product.variants || [];
 
-                  return (
-                    <>
-                {/* Product Image Placeholder */}
-                <div className="relative aspect-square rounded-xl bg-muted flex items-center justify-center overflow-hidden">
-                  {product.imageUrl ? (
-                    <img
-                      src={resolveImageUrl(product.imageUrl)}
-                      alt={product.name}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="text-center">
-                      {product.category.includes("beer") && (
-                        <Beer className="h-16 w-16 text-primary/30 mx-auto" />
-                      )}
-                      {product.category.includes("mixer") && (
-                        <Martini className="h-16 w-16 text-primary/30 mx-auto" />
-                      )}
-                      {!product.category.includes("beer") && !product.category.includes("mixer") && (
-                        <GlassWater className="h-16 w-16 text-primary/30 mx-auto" />
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Tags */}
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {(product.tags || []).map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant="secondary"
-                      className="text-xs font-normal"
-                    >
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-
-                {/* Product Info */}
-                <h3 className="mt-3 font-semibold text-foreground line-clamp-2">
-                  {getProductDisplayName(product.name, selectedVariant)}
-                </h3>
-                <p className="text-sm text-muted-foreground">{product.categoryLabel}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {variants.map((variant) => {
-                    const isSelected = selectedVariant?.sku === variant.sku;
-                    return (
-                      <button
-                        key={variant.sku}
-                        type="button"
-                        onClick={() =>
-                          setSelectedVariantByProduct((prev) => ({
-                            ...prev,
-                            [product.id]: variant.sku,
-                          }))
-                        }
-                        className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                          isSelected
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border bg-background text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {toVariantLabel(variant)}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <p className="text-xs text-muted-foreground">
-                  Min. order:{" "}
-                  {selectedVariant
-                    ? `${selectedVariant.minOrder} ${
-                        selectedVariant.packType === "crate" ? "crates" : "pieces"
-                      }`
-                    : "-"}
-                </p>
-                <div className="mt-3">
-                  {selectedVariant?.price !== null && selectedVariant?.price !== undefined ? (
-                    <p className="text-xl font-bold text-foreground">
-                      EUR {selectedVariant.price.toFixed(2)}
-                    </p>
-                  ) : (
-                    <p className="text-sm font-medium text-muted-foreground inline-flex items-center gap-2">
-                      <Lock className="h-4 w-4" />
-                      <Link href="/signin?next=/products" className="text-primary hover:underline">
-                        Login to see price
-                      </Link>
-                    </p>
-                  )}
-                </div>
-
-                {selectedVariant && selectedVariant.price !== null && (
-                  <div className="mt-3 inline-flex items-center rounded-full border border-border">
-                    <button
-                      type="button"
-                      className="inline-flex h-8 w-8 items-center justify-center"
-                      onClick={() =>
-                        setQuantityBySku((prev) => ({
-                          ...prev,
-                          [selectedVariant.sku]: Math.max(
-                            selectedVariant.minOrder,
-                            (prev[selectedVariant.sku] || selectedVariant.minOrder) - 1
-                          ),
-                        }))
-                      }
-                      aria-label="Decrease quantity"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </button>
-                    <span className="min-w-10 text-center text-sm font-medium">
-                      {Math.max(
-                        selectedVariant.minOrder,
-                        quantityBySku[selectedVariant.sku] || selectedVariant.minOrder
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      className="inline-flex h-8 w-8 items-center justify-center"
-                      onClick={() =>
-                        setQuantityBySku((prev) => ({
-                          ...prev,
-                          [selectedVariant.sku]: Math.min(
-                            999,
-                            (prev[selectedVariant.sku] || selectedVariant.minOrder) + 1
-                          ),
-                        }))
-                      }
-                      aria-label="Increase quantity"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-
-                {/* Action */}
-                <Button
-                  className="mt-4 w-full"
-                  variant={selectedVariant && lastAddedProductId === selectedVariant.sku ? "default" : "outline"}
-                  onClick={() => void handleAddToCart(product, selectedVariant)}
-                  disabled={
-                    !selectedVariant ||
-                    selectedVariant.price === null ||
-                    (selectedVariant ? addingSku === selectedVariant.sku : false)
-                  }
+              return (
+                <div
+                  key={product.id}
+                  className="group flex flex-col rounded-2xl bg-card p-6 shadow-sm transition-all hover:shadow-md"
                 >
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  {!selectedVariant || selectedVariant.price === null
-                    ? "Login to Add"
-                    : addingSku === selectedVariant.sku
-                    ? "Adding..."
-                    : lastAddedProductId === selectedVariant.sku
-                    ? "Added"
-                    : "Add to Cart"}
-                </Button>
-                    </>
-                  );
-                })()}
-              </div>
-            ))}
+                  <div className="relative aspect-square rounded-xl bg-muted flex items-center justify-center overflow-hidden">
+                    {product.imageUrl ? (
+                      <img
+                        src={resolveImageUrl(product.imageUrl)}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="text-center">
+                        {product.category.includes("beer") && (
+                          <Beer className="h-16 w-16 text-primary/30 mx-auto" />
+                        )}
+                        {product.category.includes("mixer") && (
+                          <Martini className="h-16 w-16 text-primary/30 mx-auto" />
+                        )}
+                        {!product.category.includes("beer") &&
+                          !product.category.includes("mixer") && (
+                            <GlassWater className="h-16 w-16 text-primary/30 mx-auto" />
+                          )}
+                      </div>
+                    )}
+                  </div>
+
+                  <h3 className="mt-4 font-semibold text-foreground line-clamp-2">
+                    {product.name}
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{product.categoryLabel}</p>
+
+                  <div className="mt-4 flex flex-col gap-4">
+                    {variants.length === 0 && (
+                      <p className="text-sm text-muted-foreground">No sizes available.</p>
+                    )}
+
+                    {variants.map((variant, index) => {
+                      const quantity = Math.max(
+                        variant.minOrder,
+                        quantityBySku[variant.sku] || variant.minOrder
+                      );
+                      const canAdd = canViewPrices && variant.price !== null;
+                      const isAdding = addingSku === variant.sku;
+                      const justAdded = lastAddedSku === variant.sku;
+                      const estimatedUnitPrice = getEstimatedUnitPrice(variants, variant);
+
+                      return (
+                        <div
+                          key={variant.sku}
+                          className={index > 0 ? "border-t border-border pt-4" : ""}
+                        >
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="text-sm font-medium text-foreground">
+                              {formatSizeLabel(variant.sizeLabel)}
+                            </span>
+                            {variant.price !== null && variant.price !== undefined ? (
+                              <span className="text-sm font-bold text-foreground">
+                                EUR {variant.price.toFixed(2)}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                <Lock className="h-3.5 w-3.5" />
+                                <Link
+                                  href="/signin?next=/products"
+                                  className="text-primary hover:underline"
+                                >
+                                  Login for price
+                                </Link>
+                              </span>
+                            )}
+                          </div>
+
+                          {canAdd && (
+                            <div className="mt-2 inline-flex items-center rounded-full border border-border">
+                              <button
+                                type="button"
+                                className="inline-flex h-8 w-8 items-center justify-center disabled:opacity-50"
+                                onClick={() =>
+                                  setQuantityBySku((prev) => ({
+                                    ...prev,
+                                    [variant.sku]: Math.max(variant.minOrder, quantity - 1),
+                                  }))
+                                }
+                                disabled={isAdding || quantity <= variant.minOrder}
+                                aria-label={`Decrease quantity for ${variant.sizeLabel}`}
+                              >
+                                <Minus className="h-4 w-4" />
+                              </button>
+                              <span className="min-w-10 text-center text-sm font-medium">
+                                {quantity}
+                              </span>
+                              <button
+                                type="button"
+                                className="inline-flex h-8 w-8 items-center justify-center disabled:opacity-50"
+                                onClick={() =>
+                                  setQuantityBySku((prev) => ({
+                                    ...prev,
+                                    [variant.sku]: Math.min(999, quantity + 1),
+                                  }))
+                                }
+                                disabled={isAdding}
+                                aria-label={`Increase quantity for ${variant.sizeLabel}`}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+
+                          <Button
+                            className="mt-2 w-full"
+                            size="sm"
+                            variant={justAdded ? "default" : "outline"}
+                            onClick={() => void handleAddToCart(variant)}
+                            disabled={!canAdd || isAdding}
+                          >
+                            <ShoppingCart className="mr-2 h-4 w-4" />
+                            {!canAdd
+                              ? "Login to Add"
+                              : isAdding
+                              ? "Adding..."
+                              : justAdded
+                              ? "Added"
+                              : "Add to Cart"}
+                          </Button>
+
+                          {estimatedUnitPrice !== null && (
+                            <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2">
+                              <div className="flex items-baseline justify-between gap-3 text-xs">
+                                <span className="text-muted-foreground">Est. 1 piece</span>
+                                <span className="font-medium text-foreground">
+                                  EUR {estimatedUnitPrice.toFixed(2)}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-[11px] text-muted-foreground">
+                                (sold in crates only)
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {!isLoading && products.length > 0 && totalPages > 1 && (
