@@ -62,7 +62,7 @@ const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
         )}
 
         {/* Product Image */}
-        <div className="relative mb-4 flex h-48 w-full items-center justify-center">
+        <div className="product-image-container mb-4 h-48 w-full rounded-xl">
           <img
             src={imageUrl}
             alt={name}

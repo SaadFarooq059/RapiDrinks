@@ -194,7 +194,7 @@ export function FeaturedProducts() {
                 >
                   <div className="h-full flex flex-col">
                     <div className="p-4 flex justify-center">
-                      <div className="flex justify-center items-center h-40">
+                      <div className="product-image-container h-40 w-full rounded-xl">
                         <img
                           src={product.imageUrl}
                           alt={product.name}

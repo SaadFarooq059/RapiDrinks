@@ -8,6 +8,7 @@ import {
   Beer,
   Martini,
   GlassWater,
+  CupSoda,
   ShoppingCart,
   Lock,
   Minus,
@@ -24,7 +25,7 @@ import { apiRequest, resolveImageUrl } from "@/lib/api-client";
 type Category = {
   id: string;
   name: string;
-  icon: typeof Beer | typeof Martini | typeof GlassWater | null;
+  icon: typeof Beer | typeof Martini | typeof GlassWater | typeof CupSoda | null;
 };
 
 type ProductsResponse = {
@@ -64,6 +65,7 @@ const CATEGORY_ALIAS: Record<string, string> = {
   beers: "beer",
   "soft drinks": "soft-drinks",
   "non-alcoholic": "soft-drinks",
+  "ready to drink": "mixers",
 };
 
 const SOFT_DRINKS_GROUP_ID = "soft-drinks-group";
@@ -88,6 +90,7 @@ const MAIN_CATEGORIES: Category[] = [
   { id: "beer", name: "Beer", icon: Beer },
   { id: "wine", name: "Wine", icon: GlassWater },
   { id: "spirits", name: "Spirits", icon: Martini },
+  { id: "mixers", name: "Ready to Drink", icon: CupSoda },
   { id: SOFT_DRINKS_GROUP_ID, name: "Soft Drinks", icon: GlassWater },
 ];
 
@@ -115,13 +118,13 @@ export default function ProductsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canViewPrices, setCanViewPrices] = useState(false);
   const [cartCount, setCartCount] = useState(0);
-  const [lastAddedSku, setLastAddedSku] = useState<string | null>(null);
+  const [lastAddedProductId, setLastAddedProductId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [cartActionError, setCartActionError] = useState<string | null>(null);
   const [quantityBySku, setQuantityBySku] = useState<Record<string, number>>({});
-  const [addingSku, setAddingSku] = useState<string | null>(null);
+  const [addingProductId, setAddingProductId] = useState<string | null>(null);
 
   const effectiveCategory = useMemo(() => {
     if (activeMain === "all") return null;
@@ -179,17 +182,6 @@ export default function ProductsPage() {
         const response = await apiRequest<ProductsResponse>(`/products?${params.toString()}`);
         if (!isMounted) return;
         setProducts(response.items);
-        setQuantityBySku((prev) => {
-          const next = { ...prev };
-          for (const product of response.items) {
-            for (const variant of product.variants || []) {
-              if (!next[variant.sku] || next[variant.sku] < variant.minOrder) {
-                next[variant.sku] = variant.minOrder;
-              }
-            }
-          }
-          return next;
-        });
         setTotalItems(response.pagination.totalItems);
         setTotalPages(Math.max(1, response.pagination.totalPages));
       } catch (error) {
@@ -244,24 +236,43 @@ export default function ProductsPage() {
     setCurrentPage(1);
   }, [effectiveCategory, searchQuery]);
 
-  const handleAddToCart = async (variant: ProductVariant) => {
-    if (!canViewPrices || variant.price === null) return;
-    if (addingSku === variant.sku) return;
+  const handleAddToCart = async (product: ProductGroup) => {
+    if (!canViewPrices) return;
+
+    const variants = product.variants || [];
+    const toAdd = variants.filter((variant) => {
+      const qty = quantityBySku[variant.sku] ?? 0;
+      return qty > 0 && variant.price !== null;
+    });
+
+    if (toAdd.length === 0 || addingProductId) return;
+
     setCartActionError(null);
-    setAddingSku(variant.sku);
-    const quantity = Math.max(variant.minOrder, quantityBySku[variant.sku] || variant.minOrder);
+    setAddingProductId(product.id);
+
     try {
-      await addToCart({
-        sku: variant.sku,
-        minOrder: variant.minOrder,
-        quantity,
+      for (const variant of toAdd) {
+        const quantity = quantityBySku[variant.sku] ?? 0;
+        await addToCart({
+          sku: variant.sku,
+          minOrder: variant.minOrder,
+          quantity,
+        });
+      }
+
+      setQuantityBySku((prev) => {
+        const next = { ...prev };
+        for (const variant of variants) {
+          next[variant.sku] = 0;
+        }
+        return next;
       });
-      setLastAddedSku(variant.sku);
-      window.setTimeout(() => setLastAddedSku(null), 1200);
+      setLastAddedProductId(product.id);
+      window.setTimeout(() => setLastAddedProductId(null), 1200);
     } catch (error) {
       setCartActionError(error instanceof Error ? error.message : "Unable to add to cart.");
     } finally {
-      setAddingSku(null);
+      setAddingProductId(null);
     }
   };
 
@@ -409,18 +420,34 @@ export default function ProductsPage() {
           <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {products.map((product) => {
               const variants = product.variants || [];
+              const canViewProduct = canViewPrices && variants.some((v) => v.price !== null);
+              const selectedQuantity = variants.reduce(
+                (sum, variant) => sum + (quantityBySku[variant.sku] ?? 0),
+                0
+              );
+              const isAdding = addingProductId === product.id;
+              const justAdded = lastAddedProductId === product.id;
+
+              const isMixersProduct =
+                product.category === "mixers" || product.category.includes("mixer");
 
               return (
                 <div
                   key={product.id}
                   className="group flex flex-col rounded-2xl bg-card p-6 shadow-sm transition-all hover:shadow-md"
                 >
-                  <div className="relative aspect-square rounded-xl bg-muted flex items-center justify-center overflow-hidden">
+                  <div
+                    className={
+                      isMixersProduct
+                        ? "product-image-wrapper aspect-square"
+                        : "product-image-container aspect-square rounded-xl"
+                    }
+                  >
                     {product.imageUrl ? (
                       <img
                         src={resolveImageUrl(product.imageUrl)}
                         alt={product.name}
-                        className="h-full w-full object-cover"
+                        className={isMixersProduct ? "" : "h-full w-full object-contain"}
                         loading="lazy"
                       />
                     ) : (
@@ -450,13 +477,7 @@ export default function ProductsPage() {
                     )}
 
                     {variants.map((variant, index) => {
-                      const quantity = Math.max(
-                        variant.minOrder,
-                        quantityBySku[variant.sku] || variant.minOrder
-                      );
-                      const canAdd = canViewPrices && variant.price !== null;
-                      const isAdding = addingSku === variant.sku;
-                      const justAdded = lastAddedSku === variant.sku;
+                      const quantity = quantityBySku[variant.sku] ?? 0;
                       const estimatedUnitPrice = getEstimatedUnitPrice(variants, variant);
 
                       return (
@@ -485,7 +506,7 @@ export default function ProductsPage() {
                             )}
                           </div>
 
-                          {canAdd && (
+                          {canViewProduct && variant.price !== null && (
                             <div className="mt-2 inline-flex items-center rounded-full border border-border">
                               <button
                                 type="button"
@@ -493,10 +514,10 @@ export default function ProductsPage() {
                                 onClick={() =>
                                   setQuantityBySku((prev) => ({
                                     ...prev,
-                                    [variant.sku]: Math.max(variant.minOrder, quantity - 1),
+                                    [variant.sku]: Math.max(0, quantity - 1),
                                   }))
                                 }
-                                disabled={isAdding || quantity <= variant.minOrder}
+                                disabled={isAdding || quantity <= 0}
                                 aria-label={`Decrease quantity for ${variant.sizeLabel}`}
                               >
                                 <Minus className="h-4 w-4" />
@@ -521,23 +542,6 @@ export default function ProductsPage() {
                             </div>
                           )}
 
-                          <Button
-                            className="mt-2 w-full"
-                            size="sm"
-                            variant={justAdded ? "default" : "outline"}
-                            onClick={() => void handleAddToCart(variant)}
-                            disabled={!canAdd || isAdding}
-                          >
-                            <ShoppingCart className="mr-2 h-4 w-4" />
-                            {!canAdd
-                              ? "Login to Add"
-                              : isAdding
-                              ? "Adding..."
-                              : justAdded
-                              ? "Added"
-                              : "Add to Cart"}
-                          </Button>
-
                           {estimatedUnitPrice !== null && (
                             <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2">
                               <div className="flex items-baseline justify-between gap-3 text-xs">
@@ -555,6 +559,22 @@ export default function ProductsPage() {
                       );
                     })}
                   </div>
+
+                  <Button
+                    className="mt-5 w-full"
+                    variant={justAdded ? "default" : "outline"}
+                    onClick={() => void handleAddToCart(product)}
+                    disabled={!canViewProduct || selectedQuantity === 0 || isAdding}
+                  >
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    {!canViewProduct
+                      ? "Login to Add"
+                      : isAdding
+                      ? "Adding..."
+                      : justAdded
+                      ? "Added"
+                      : "Add to Cart"}
+                  </Button>
                 </div>
               );
             })}
