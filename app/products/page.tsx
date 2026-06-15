@@ -18,6 +18,13 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AUTH_UPDATED_EVENT, isAuthenticated } from "@/lib/dummy-auth";
 import { CART_UPDATED_EVENT, addToCart, getCartCount } from "@/lib/cart";
 import { apiRequest, resolveImageUrl } from "@/lib/api-client";
@@ -58,7 +65,8 @@ type ProductGroup = {
   variants: ProductVariant[];
 };
 
-const PRODUCTS_PER_PAGE = 12;
+const PAGE_SIZE_OPTIONS = [20, 30, 50] as const;
+const DEFAULT_PAGE_SIZE = 20;
 
 const CATEGORY_ALIAS: Record<string, string> = {
   wines: "wine",
@@ -120,6 +128,7 @@ export default function ProductsPage() {
   const [cartCount, setCartCount] = useState(0);
   const [lastAddedProductId, setLastAddedProductId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [cartActionError, setCartActionError] = useState<string | null>(null);
@@ -172,7 +181,7 @@ export default function ProductsPage() {
       try {
         const params = new URLSearchParams();
         params.set("page", String(currentPage));
-        params.set("limit", String(PRODUCTS_PER_PAGE));
+        params.set("limit", String(pageSize));
         if (searchQuery.trim()) {
           params.set("search", searchQuery.trim());
         }
@@ -201,7 +210,7 @@ export default function ProductsPage() {
     return () => {
       isMounted = false;
     };
-  }, [effectiveCategory, currentPage, searchQuery]);
+  }, [effectiveCategory, currentPage, searchQuery, pageSize]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -234,7 +243,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [effectiveCategory, searchQuery]);
+  }, [effectiveCategory, searchQuery, pageSize]);
 
   const handleAddToCart = async (product: ProductGroup) => {
     if (!canViewPrices) return;
@@ -366,13 +375,33 @@ export default function ProductsPage() {
             </div>
           )}
 
-          {/* Product Count */}
-          <p className="mt-8 text-sm text-muted-foreground">
-            Showing{" "}
-            {totalItems === 0 ? 0 : (currentPage - 1) * PRODUCTS_PER_PAGE + 1}
-            -
-            {Math.min(currentPage * PRODUCTS_PER_PAGE, totalItems)} of {totalItems} matching products
-          </p>
+          {/* Product Count & Page Size */}
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing{" "}
+              {totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+              -
+              {Math.min(currentPage * pageSize, totalItems)} of {totalItems} matching products
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Show per page:</span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => setPageSize(Number(value))}
+              >
+                <SelectTrigger size="sm" className="w-[72px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           {!canViewPrices && (
             <div className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <span className="inline-flex items-center gap-2">
