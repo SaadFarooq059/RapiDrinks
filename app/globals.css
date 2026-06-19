@@ -133,9 +133,9 @@
   }
 
   .product-image-wrapper {
-    background-color: #f8f8f8;
+    background-color: #ffffff;
     border-radius: 12px;
-    padding: 8px;
+    padding: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -148,10 +148,6 @@
     max-height: 200px;
     width: 100%;
     height: auto;
-  }
-
-  .dark .product-image-wrapper {
-    background-color: #2a2a2a;
   }
 }
 

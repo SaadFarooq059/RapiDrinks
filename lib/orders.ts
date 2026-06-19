@@ -2,13 +2,16 @@ import { apiRequest } from "@/lib/api-client";
 
 export type PaymentStatus = "pending" | "paid" | "failed" | "expired";
 
-export type CheckoutSession = {
+/** POST /api/orders/checkout */
+export type CheckoutResponse = {
   orderId: string;
-  checkoutUrl: string;
-  total: number;
   status: string;
   paymentStatus: PaymentStatus;
+  checkoutUrl: string;
+  total: number;
 };
+
+export type CheckoutSession = CheckoutResponse;
 
 export type OrderItem = {
   sku: string;
@@ -20,19 +23,23 @@ export type OrderItem = {
   lineTotal: number;
 };
 
-export type Order = {
+/** GET /api/orders list item */
+export type OrderListItem = {
   id: string;
   status: string;
   total: number;
-  currency: string;
-  createdAt: string;
-  items: OrderItem[];
-  receiptUrl?: string | null;
-  totalQuantity?: number;
-  notes?: string;
   paymentMethod?: string;
   paymentStatus: PaymentStatus;
+  createdAt: string;
   paidAt: string | null;
+};
+
+/** GET /api/orders/:orderId */
+export type Order = OrderListItem & {
+  currency: string;
+  items: OrderItem[];
+  notes?: string;
+  receiptUrl?: string | null;
 };
 
 type RawOrder = Record<string, unknown>;
@@ -73,29 +80,15 @@ function normalizeOrderItem(raw: unknown): OrderItem {
   };
 }
 
-export function normalizeOrder(raw: RawOrder): Order {
-  const items = Array.isArray(raw.items) ? raw.items.map(normalizeOrderItem) : [];
+function normalizeOrderListItem(raw: RawOrder): OrderListItem {
   return {
     id: String(raw.id ?? raw.orderId ?? ""),
     status: String(raw.status ?? "placed"),
     total: toNumber(raw.total ?? raw.totalAmount, 0),
-    currency: String(raw.currency ?? "EUR").toUpperCase(),
-    createdAt: String(raw.createdAt ?? raw.created_at ?? ""),
-    items,
-    receiptUrl:
-      typeof raw.receiptUrl === "string"
-        ? raw.receiptUrl
-        : typeof raw.receipt_url === "string"
-        ? (raw.receipt_url as string)
-        : null,
-    totalQuantity:
-      raw.totalQuantity !== undefined
-        ? toNumber(raw.totalQuantity)
-        : items.reduce((sum, item) => sum + item.quantity, 0),
-    notes: typeof raw.notes === "string" ? raw.notes : undefined,
     paymentMethod:
       typeof raw.paymentMethod === "string" ? raw.paymentMethod : undefined,
     paymentStatus: normalizePaymentStatus(raw.paymentStatus),
+    createdAt: String(raw.createdAt ?? raw.created_at ?? ""),
     paidAt:
       typeof raw.paidAt === "string"
         ? raw.paidAt
@@ -105,21 +98,37 @@ export function normalizeOrder(raw: RawOrder): Order {
   };
 }
 
+export function normalizeOrder(raw: RawOrder): Order {
+  const base = normalizeOrderListItem(raw);
+  const items = Array.isArray(raw.items) ? raw.items.map(normalizeOrderItem) : [];
+  return {
+    ...base,
+    currency: String(raw.currency ?? "EUR").toUpperCase(),
+    items,
+    receiptUrl:
+      typeof raw.receiptUrl === "string"
+        ? raw.receiptUrl
+        : typeof raw.receipt_url === "string"
+        ? (raw.receipt_url as string)
+        : null,
+    notes: typeof raw.notes === "string" ? raw.notes : undefined,
+  };
+}
+
 export async function startCheckout(notes?: string): Promise<CheckoutSession> {
   const trimmed = notes?.trim();
-  return apiRequest<CheckoutSession>("/orders/checkout", {
+  return apiRequest<CheckoutResponse>("/orders/checkout", {
     method: "POST",
     auth: true,
     body: trimmed ? { notes: trimmed } : {},
   });
 }
 
-export async function getOrders(): Promise<Order[]> {
-  const response = await apiRequest<{ items?: RawOrder[] } | RawOrder[]>("/orders", {
+export async function getOrders(): Promise<OrderListItem[]> {
+  const response = await apiRequest<{ items: RawOrder[] }>("/orders", {
     auth: true,
   });
-  const list = Array.isArray(response) ? response : response.items ?? [];
-  return list.map(normalizeOrder);
+  return (response.items ?? []).map(normalizeOrderListItem);
 }
 
 export async function getOrder(orderId: string): Promise<Order> {

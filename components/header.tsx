@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowUpRight, Menu, LogIn, LogOut, ShoppingCart, Package } from "lucide-react";
+import { ArrowUpRight, Menu, LogIn, LogOut, ShoppingCart, Package, User } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -100,6 +100,13 @@ export function Header() {
             <div className="hidden lg:flex items-center gap-3">
               {authed && (
                 <Button variant="ghost" size="icon" asChild className="hover:text-primary transition-colors">
+                  <Link href="/account" aria-label="My account">
+                    <User className="w-5 h-5" />
+                  </Link>
+                </Button>
+              )}
+              {authed && (
+                <Button variant="ghost" size="icon" asChild className="hover:text-primary transition-colors">
                   <Link href="/orders" aria-label="My orders">
                     <Package className="w-5 h-5" />
                   </Link>
@@ -177,6 +184,14 @@ export function Header() {
                       View Cart {cartCount > 0 ? `(${cartCount})` : ""}
                     </Link>
                   </Button>
+                  {authed && (
+                    <Button variant="outline" asChild className="justify-start gap-2 h-12 hover:bg-accent/50 transition-colors">
+                      <Link href="/account">
+                        <User className="w-4 h-4" />
+                        My Account
+                      </Link>
+                    </Button>
+                  )}
                   {authed && (
                     <Button variant="outline" asChild className="justify-start gap-2 h-12 hover:bg-accent/50 transition-colors">
                       <Link href="/orders">

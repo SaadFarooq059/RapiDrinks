@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle, Clock, Package, Receipt, XCircle } from "lucide-react";
+import { CheckCircle, Clock, Package, XCircle } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, getOrders, type Order, type PaymentStatus } from "@/lib/orders";
+import { formatCurrency, getOrders, type OrderListItem, type PaymentStatus } from "@/lib/orders";
 import { isAuthenticated } from "@/lib/dummy-auth";
 
 function formatDate(value: string): string {
@@ -41,7 +41,7 @@ function PaymentBadge({ status }: { status: PaymentStatus }) {
 
 export default function OrdersPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,16 +123,17 @@ export default function OrdersPage() {
                     <div>
                       <p className="font-semibold text-foreground">Order #{order.id}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {order.totalQuantity ?? order.items.length} item
-                        {(order.totalQuantity ?? order.items.length) === 1 ? "" : "s"}
-                        {order.createdAt ? ` · ${formatDate(order.createdAt)}` : ""}
+                        {order.createdAt ? formatDate(order.createdAt) : "—"}
+                        {order.paymentMethod
+                          ? ` · ${order.paymentMethod.charAt(0).toUpperCase()}${order.paymentMethod.slice(1)}`
+                          : ""}
                       </p>
                       <div className="mt-2">
                         <PaymentBadge status={order.paymentStatus} />
                       </div>
                     </div>
                     <span className="text-lg font-bold text-foreground">
-                      {formatCurrency(order.total, order.currency)}
+                      {formatCurrency(order.total)}
                     </span>
                   </div>
 
@@ -140,14 +141,6 @@ export default function OrdersPage() {
                     <Button size="sm" variant="outline" asChild>
                       <Link href={`/orders/${order.id}`}>View Details</Link>
                     </Button>
-                    {order.receiptUrl && (
-                      <Button size="sm" variant="ghost" asChild>
-                        <a href={order.receiptUrl} target="_blank" rel="noopener noreferrer">
-                          <Receipt className="mr-2 h-4 w-4" />
-                          Receipt
-                        </a>
-                      </Button>
-                    )}
                   </div>
                 </div>
               ))}

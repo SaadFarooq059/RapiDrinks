@@ -457,8 +457,10 @@ export default function ProductsPage() {
               const isAdding = addingProductId === product.id;
               const justAdded = lastAddedProductId === product.id;
 
-              const isMixersProduct =
-                product.category === "mixers" || product.category.includes("mixer");
+              const usesBlendImageWrapper =
+                product.category === "beer" ||
+                product.category === "mixers" ||
+                product.category.includes("mixer");
 
               return (
                 <div
@@ -467,7 +469,7 @@ export default function ProductsPage() {
                 >
                   <div
                     className={
-                      isMixersProduct
+                      usesBlendImageWrapper
                         ? "product-image-wrapper aspect-square"
                         : "product-image-container aspect-square rounded-xl"
                     }
@@ -476,7 +478,7 @@ export default function ProductsPage() {
                       <img
                         src={resolveImageUrl(product.imageUrl)}
                         alt={product.name}
-                        className={isMixersProduct ? "" : "h-full w-full object-contain"}
+                        className={usesBlendImageWrapper ? "" : "h-full w-full object-contain"}
                         loading="lazy"
                       />
                     ) : (
