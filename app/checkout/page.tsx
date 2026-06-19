@@ -166,7 +166,7 @@ function CheckoutContent() {
                     onClick={handleCheckout}
                     disabled={isRedirecting || isLoading}
                   >
-                    {isRedirecting ? "Redirecting to secure payment..." : "Place Order"}
+                    {isRedirecting ? "Redirecting to secure payment..." : "Pay"}
                   </Button>
 
                   <p className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
