@@ -166,12 +166,12 @@ function CheckoutContent() {
                     onClick={handleCheckout}
                     disabled={isRedirecting || isLoading}
                   >
-                    {isRedirecting ? "Redirecting to secure payment..." : "Pay with Stripe"}
+                    {isRedirecting ? "Redirecting to secure payment..." : "Place Order"}
                   </Button>
 
                   <p className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
                     <Lock className="h-3.5 w-3.5" />
-                    You&apos;ll be redirected to Stripe&apos;s secure checkout page.
+                    Secure encrypted payment.
                   </p>
 
                   <div className="mt-4 text-center">
