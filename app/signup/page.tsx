@@ -121,7 +121,7 @@ export default function SignUpPage() {
 
   return (
     <SignUpTemplate
-      title={<span className="font-light text-foreground tracking-tighter">Join Rapid Drinks</span>}
+      title={<span className="font-light text-foreground tracking-tighter">Nearly Done !</span>}
       description={
         error ? (
           <span className="text-destructive">{error}</span>
